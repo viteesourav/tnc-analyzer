@@ -1,0 +1,39 @@
+# Gradle
+.gradle/
+build/
+out/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Gradle wrapper
+gradle/wrapper/gradle-wrapper.jar
+gradle/wrapper/gradle-wrapper.properties
+
+# IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Eclipse/STS
+.classpath
+.project
+.settings/
+
+# macOS
+.DS_Store
+
+# Logs and runtime
+*.log
+tmp/
+*.pid
+
+# Keystores and secrets
+*.jks
+*.keystore
+.env
+.env.local
+secrets.properties
+
+# Others
+node_modules/

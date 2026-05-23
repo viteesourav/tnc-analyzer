@@ -1,0 +1,5 @@
+rootProject.name = 'tnc-analyzer'
+
+include 'api-gateway'
+include 'auth-service'
+include 'analysis-service'
