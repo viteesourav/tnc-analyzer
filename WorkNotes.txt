@@ -116,11 +116,49 @@ Date: 23rd May 2026
             => Updated dependencies of the pojects with correct name that works with Springboot 3.2.5
             => ./gradlew clean, ./gradlew build --refresh-dependencies
    
-    -> Tested the application:
+    -> Tested the application & Spring Cloud Re-direction of incoming Request:
         - All services can run independently. 
         - we are able to call analysis-service from auth service using Controller ==> This will be removed & will be handled by spring-cloud-starter-gateway.
             -> In application yml of gateway-service: added a cloud-gateway-route 
             -> Redirects all routes with analyze to a different service automatically without writing a specific controller.
     
     -> Start Working on Authentication + JWT Architecture Changes
-        - 
+        - PHASE 1: Simple login with JWT
+            -- local Login with JWT generation & gateway service validates JWT.
+            -- Deinfed a dummy dto, a JWT Util [gerenrates a token for 1h ], an a controller service at Auth.
+        NOTE:
+            1. by-default, when we use spring-boot-security, all end-points are protected.
+                - to by-pass this, we added a @Configuration for springboot to disable CSRF and add a pass for sepecific route.
+            2. Folder strcuture messup:
+                - earlier, we defined controller, config, dto, util under auth -> package: com.tnc.auth
+                - the actual service file was under a differnet package all together
+                - Concept: The Springboot service discovery scans the folder completely from where it is defined.
+                - Solution: We moved to AuthServiceApplication.java  to package: com.tnc [a global package where it can discover all configurations and controllers] 
+
+                !! This one is basic & Most important !!!
+            3. The SHA signing with jwt.
+                - some issue with the secerte token lenth of character for the HSA256 encription algo.
+                - So we increased the size.
+                - also as suggested, instead of using string secret key, we are now using a modern Secert object.
+
+            -- Nextup we want to protect our Routes from anyone to access it. 
+                - JWT validation can happen at 2 places:
+                    1. Gateway   - Validate once at entry.
+                    2. Every Service - Each service validates independently.
+                - Ideally, Gateway must validate first and then AND/OR service validates too.
+                - Updated Flow:
+                    Client logs in => Auth service returns JWT => Client sends JWT in Authorization header => Gateway validates JWT => Gateway forwards the request.
+
+                This is "StateLess Authentication"  -> the server doesnot store any session -> JWT itself carries identity.
+
+                - Enabling JWT protected Routes:
+                    -> So far, we are able to generate a token (JWT) from auth-service [using dummy creds for admin/password]. -> Since no db or user persisitence added yet !
+                    -> we able to verify the APis are protected ?
+                        -> In Gateway service -> we added a JWTutil that verify if the token is correct or not ?
+                        -> We also added an JwtAuthenticationFiler -> Kind of a post-processor from the Spring cLoud, which provides method that interect the incoming request and we can add any postprocessing in that. => here we are extracting the "Bearer <token>" from header, validating it, making a decision if to allow the user or not !
+                    
+                This basically addes Token Procted Routes to Gateway Service while re-directing to other services.
+
+            -- Handling User SignUps + DB Storage + Password Hashing:
+                - 
+            

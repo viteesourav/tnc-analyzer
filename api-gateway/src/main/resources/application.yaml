@@ -10,6 +10,8 @@ spring:
           uri: http://localhost:8081  # The local destination port for this backend
           predicates:
             - Path=/analyze/**  # Any endpoint starting with /analyze routing goes here
+          filters:
+            - JwtAuthenticationFilter  # custom JWT auth check for the routed url.
 
 server:
   port: 8080  # Public entry point for users/frontend clients
