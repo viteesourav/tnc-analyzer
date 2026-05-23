@@ -1,0 +1,126 @@
+Goal of the Project:
+
+Built an AI-powered Terms & Conditions analyzer using Spring Boot microservices with Kafka-based async processing, Redis caching, OAuth authentication, and rate-limited API Gateway. Extended with browser automation capabilities
+
+Plan for the building the Project:
+
+    1. Project Setup + Architecture
+        -> Multi-module repo structure [3 different services under 1 service]
+        -> Setup Docker + Docker Compose.
+        -> Add Postgress Container
+    
+    All Services must be running in local
+
+    2. Authentication (OAuth + Jwt)
+        -> JWT Generation
+        -> Google/Github OAuth
+        -> Secure APIs
+
+    Learn about the OAuth flow + Token based auth process
+    
+    3. Core APIs
+        -> fake APIs for testing.
+        -> Create actual APIs for POST /analyze + GET /result/{id} + GET /history.
+
+    Learn API designs !
+
+    4. DB Design + Cleanup
+        -> Design Schemas to store the responses.
+        -> tables: users & analysis.
+
+    5. Async + Infra Enhancements
+        -> Add Kafka (docker) + Producers in analsis-service + Consumer (new Service: worker) 
+
+    Learn Event Driven Architecture & Message Flow
+
+    6. AI Integration
+        -> Integrate google GemniAI or OpenAI [Anything that is free to use]
+        -> Prompt Designing
+
+
+### Project Architecture
+
+    Gateway → Auth → Analysis Service → Kafka → Worker → AI
+                         ↓
+                      Postgres
+                         ↓
+                       Redis
+
+
+### Prject Techstack
+
+| Layer      | Tech                        |
+| ---------- | --------------------------- |
+| Language   | Java 21                     |
+| Build Tool | Gradle                      |
+| Framework  | Spring Boot                 |
+| Gateway    | Spring Cloud Gateway        |
+| Auth       | OAuth + JWT                 |
+| DB         | PostgreSQL                  |
+| Cache      | Redis                       |
+| Queue      | Kafka                       |
+| AI         | External API (configurable) |
+| Infra      | Docker Compose              |
+
+
+### Service wise seperation:
+    1. api-Gateway:
+        - Entry point to your system
+        - Handles:
+            Routing
+            Rate limiting (later)
+            Request forwarding
+
+        This is where Spring Cloud Gateway belongs
+    
+    2. auth-service
+        - Handles:
+            Login (OAuth)
+            JWT generation
+            User identity
+
+    
+    Client → API Gateway → Auth Service → Analysis Service
+
+    -- Gateway routes requests
+    -- Auth validates identity
+    -- Analysis does business logic
+
+
+
+## Work Notes on Progress ##
+
+Date: 23rd May 2026
+
+    -> We are done with the Project Setup.
+        - Installed JDK21 + Docker Desktop setup.
+        - created spingboot project for all 3 services -> added these under a single project.
+        - For the project service:
+            1. added docker-compose file for postgress + redis + Kafka Configs.
+            2. create and keep: build.gradle + settings.gradle.
+        - For each sub-folders projects:
+            -> It must have the src [code-space] + build.gradle for their dependencies.
+        - Added gradle wrppaer support in main Project:
+            => Run gradle wrapper
+            => this creates: gradlew, gradlew.bat & gradle folder
+            => Run ./gradlew projects  => This shows the mono-repo architecture.
+        - To check for Running the service:
+            To build the project, run: ./gradlew clean build  ==> This builds all services.
+            In the main Project run: ./gradlew :<service-name>:bootRun
+        - Confirgure Ports for our services:
+            1. Analysis Service: 8081
+            2. Auth-service: 8082
+            3. api-gateway: 8080
+            - Location for this is for each service: expand src > find resources inside that application.yml.
+        - Downgraded Springboot to 3.2.5 ==> For better & Stable support with Kafka + Spring cloud dependencies. 
+            => Updated dependencies of the pojects with correct name that works with Springboot 3.2.5
+            => ./gradlew clean, ./gradlew build --refresh-dependencies
+   
+    -> Tested the application:
+        - All services can run independently. 
+        - we are able to call analysis-service from auth service using Controller ==> This will be removed & will be handled by spring-cloud-starter-gateway.
+            -> In application yml of gateway-service: added a cloud-gateway-route 
+            -> Redirects all routes with analyze to a different service automatically without writing a specific controller.
+    
+    -> Start Working on Authentication + JWT Architecture Changes
+        - 

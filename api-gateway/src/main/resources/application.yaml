@@ -1,6 +1,15 @@
 spring:
   application:
-    name: api-gateway
+    name: api-gateway # Identifies this microservice in logs and discovery
+  
+  cloud:
+    gateway:
+      routes:
+        # Route configurations for downstream services
+        - id: analysis-service
+          uri: http://localhost:8081  # The local destination port for this backend
+          predicates:
+            - Path=/analyze/**  # Any endpoint starting with /analyze routing goes here
 
 server:
-  port: 8080
+  port: 8080  # Public entry point for users/frontend clients
