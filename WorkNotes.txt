@@ -160,5 +160,34 @@ Date: 23rd May 2026
                 This basically addes Token Procted Routes to Gateway Service while re-directing to other services.
 
             -- Handling User SignUps + DB Storage + Password Hashing:
-                - 
-            
+                - Implementation of Spring Data JPA, Entity Modeling, Repository Layer, Service Layer, Password Hashing with Bcrypt  => Complete Auth flow.
+                -  Postgres Setup:
+                    -- use Rancher setup + docker-compose yml file, to run a instance of postgress:16 locally.
+                - Connect Auth-service to Postgress using Spring-data-JPA:
+                    -- create user-Entity -> create Repository -> Create Register User API -> handle Password Encrypt -> Login with DB User.
+                    -- Postgress connection:
+                        - created a Entity class User to store userDetails.
+                        - Created a Repository interface with JPA to handle queries to database.
+                        NOTE: 
+                            - File errors of depedendencies also resolved.
+                                Fix: Open Cntrl + shift + P -> Search for Java: Reload Prjoect => This refreshes the Java Language Server cache with the updated dependencies => Error Goes away.
+                            - Resolved a issue with Postgress database connection due to timeZone mis-matched issue. [fix: in build.gradle of auth-service]
+                    -- /Register user API:
+                        -- we created a new DTO. Even if the DTO content is same as loginRequest, we created a new one to keep open for future scaling possiblities of capturing more user-metadata.
+                        -- In AuthController, we added a /Register route -> That captures username, password -> Encrypt Password using Springboot-security's Bcrypt algo --> then save it to database.
+                        -- Config Changes:
+                            1. Added Bcrypt's passwordEncoder as Bean here, so that it can be consumed as dependencies by others. [Consumed by AuthController]
+                            2. We have explictly disabled CSRF and protetion for /auth/login & /auth/register route. Since Spring-security by default protect all routes [Receive 401].
+                                -> the login/Register route are made public to help the JWT Auth Flow.
+                    -- /login API modifications:
+                        -- Changes are made in the AuthController, login method.
+                        -- it takes the input username -> checks the username from DB, then validate the password using match [Bcrypt's internal] -> If valids -> it generates a new auth token and returns to user.
+        - Fianl Auth Flow Architecture:
+            1. First user register with username/password - auth-service   [password encrypted stored in database]
+            2. Then use login with same username/password -> gets JWT token in response  - auth-service   [password is validated]
+            3. Then the gateway service is hit with an Route of analysis-service.
+                - configuration is in application yml file of gateway service.
+                - The extraction & validation of the token is in gate-way service's JwtAuthenticationFilter [This intercept the re-directed req to analysis-service and validate the token]
+    
+    -> Start working on Analysis-Service [Core-Logic of the Product]
+        -- 
