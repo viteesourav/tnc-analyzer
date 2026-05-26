@@ -2,5 +2,10 @@ spring:
   application:
     name: analysis-service
 
+# Gemini API Secert Key
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
+
 server:
   port: 8081

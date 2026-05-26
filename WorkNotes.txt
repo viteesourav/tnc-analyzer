@@ -203,4 +203,38 @@ Date: 26th May 2026
             -> It's Job is straight -> Intercept the request => Perfrom Validation on Inputs => Pass it Service Layer for processing => Take it's return input and send it back to user.
     
     -> Gemini AI Integeration [Heart of Our project]
+        -- Architecture Update:
+            Controller ==> AnalysisService ==> GeminiService ==> Google Gemini API
+            Reason:
+                1. This Provides flexibility to choose between the AI service we want to use. 
+                2. Here we have GeminiService, Later we can move to OpenAI, Claude or Local LLMs.
+                3. WE just need to swap one Service info from the AnalysisService Layer instead of again updating the whole architecture.
+        -- Configurations:
+            -> We use the analysis service's application yml file to store the API keys for now. 
+            -> Definitly don't hardcode it in any service directly => Raise Security Concerns.
+            -> Possible options for handling sercrets in Production Products: .env or Vault or Kubernetes secrets or Config servers. 
+        -- Web-Client:
+            -> added spring-boot-starter-webflux ==> for WebClient.
+            -> It's not a fully reactive app, rather it;s just a modern Spring HTTP Client.
+            -> ROLE: WE need a HTTP Client to call Gemini API [3rd party API Integration/Invokation]
+            -> WebClient: 
+                WebClient is a modern, non-blocking, reactive HTTP client included inside the WebFlux dependency. It is used to make HTTP calls to external APIs or other microservices. [** IMP **]
+            -> Difference between WEb-Client Vs REST Template:
+                1. non-blocking
+                    -- If your service calls an external API that takes 5 seconds to respond, RestTemplate will freeze that execution thread for the entire 5 seconds. 
+                    -- WebClient fires the request, immediately frees up the thread to handle other tasks, and executes a callback whenever the external API finally responds.
+                2. Support both async and sync workflows
+                    -- Even if you aren't building a fully reactive application, you can still use WebClient in a standard blocking application by appending .block() at the end of the call chain.
+                3. Standard Practise.
+                    -- Spring has officially deprecated RestTemplate into maintenance mode, making WebClient the designated tool for HTTP communication in modern Spring apps.
+        -- Gemini Service:
+            -- Role: use WEbClient to connet to Google Gemini API, Send a custom Prompt with the Terms and Conditions Payload -> Return Response.
+            -- Model used: Google gemini 2.5 - flash
+            -- Webclient can run in reactive/non-blocking way. Here we are intentionally blocking i.e Synchronous behaviour. Later we will enhance it with Kafka for a Event Driven Flow.
 
+        WE are able to connect to an AI Model from our Sping application and Fetch Response !!!
+
+    NOTE: For now, we have the Gemini API Key saved locally. Make sure to update the application yml file of analysis-service before running. 
+
+    -> AI Enhancement with Prompt Engineering + Structured Response. 
+        -- 

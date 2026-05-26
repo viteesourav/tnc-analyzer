@@ -9,15 +9,23 @@ import com.tnc.dto.AnalyzeResponse;
 @Service
 public class AnalysisService {
 
+    private final GeminiService geminiService;
+
+    public AnalysisService(GeminiService geminiService) {
+        this.geminiService = geminiService;
+    }
+
+    // This method => Calls GeminiService, take the response and returns to Controller.
     public AnalyzeResponse analyzeText(String text) {
+
+        String apiResponse = geminiService.analyzeTerms(text);
 
         // Mock API response for now...
         return new AnalyzeResponse(
             65,
-            "Moderate risk detected in Terms & Conditions",
+            apiResponse,
             List.of(
-                "Data sharing clause detected",
-                "Auto renewal clause detected"));
+                "AI-generated analysis completed"));
     }   
 }
 
