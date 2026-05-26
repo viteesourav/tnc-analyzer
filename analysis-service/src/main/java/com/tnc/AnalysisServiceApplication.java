@@ -1,4 +1,4 @@
-package com.tnc.analysis_service;
+package com.tnc;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

@@ -121,7 +121,9 @@ Date: 23rd May 2026
         - we are able to call analysis-service from auth service using Controller ==> This will be removed & will be handled by spring-cloud-starter-gateway.
             -> In application yml of gateway-service: added a cloud-gateway-route 
             -> Redirects all routes with analyze to a different service automatically without writing a specific controller.
-    
+
+Date: 25th May 2026
+
     -> Start Working on Authentication + JWT Architecture Changes
         - PHASE 1: Simple login with JWT
             -- local Login with JWT generation & gateway service validates JWT.
@@ -188,6 +190,17 @@ Date: 23rd May 2026
             3. Then the gateway service is hit with an Route of analysis-service.
                 - configuration is in application yml file of gateway service.
                 - The extraction & validation of the token is in gate-way service's JwtAuthenticationFilter [This intercept the re-directed req to analysis-service and validate the token]
-    
+
+Date: 26th May 2026
+
     -> Start working on Analysis-Service [Core-Logic of the Product]
-        -- 
+        -- Dtos: Created 2 seperate DTOs for AnalysisRequest & Response.
+            -> What's interesting is, we didn't write the getter-setter or constructor boiler plate code -> Instead used lombak
+        -- Service Layer:
+            -> As the system scales, it's important to seperate the logic early while building anything from scratch.
+            -> Added a service Layer: It's Job is to process the data and return a result. ==> THis is the core functionality for the analysis service.
+        -- Contoller:
+            -> It's Job is straight -> Intercept the request => Perfrom Validation on Inputs => Pass it Service Layer for processing => Take it's return input and send it back to user.
+    
+    -> Gemini AI Integeration [Heart of Our project]
+
