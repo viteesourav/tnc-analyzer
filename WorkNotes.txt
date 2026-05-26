@@ -237,4 +237,8 @@ Date: 26th May 2026
     NOTE: For now, we have the Gemini API Key saved locally. Make sure to update the application yml file of analysis-service before running. 
 
     -> AI Enhancement with Prompt Engineering + Structured Response. 
-        -- 
+        -- Update the Prompt Context for the AI in Gemini-Service
+            - The prompt need to be more specific and in a structured manner. 
+            - Instruction should be there with proper guardrails to prevent models hallucinating !
+        -- Structured Response from Gemini API:
+            - Need a custom DTO to pick important sections from the AI response -> Structure it into JSON and return to client.
