@@ -309,3 +309,15 @@ Date: 30th May 2025
         -> Logging support:
             -- In GlobalException Handler -> added @Slf4j [from lombak] -> That injects a logger support to the class.
             -- With this we are printing the error log in the server directly.
+
+
+    ##### Tested the /analysis API, all test-scenarios Working perfectly fine ########
+        1. Login works -> JWT token received
+        2. /analysis:
+            1. No payload ==> 500 Internal server error with proper message.
+            2. {
+                text: "" 
+            }           ===> 404 Bad gateway Error
+            3. {
+                text: "We may share your personal data with third-party advertisers."
+            }   ==>    Got a 200 OK response with Proper JSON Format.
