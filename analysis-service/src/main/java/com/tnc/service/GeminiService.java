@@ -1,31 +1,114 @@
 package com.tnc.service;
 
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tnc.dto.AnalyzeResponse;
+
 @Service
 public class GeminiService {
     
+    private static final String MODEL = "gemini-2.5-flash";   // Constant for the model used for Gemini API -  robust, free-tier supported.
     private final WebClient webClient;
+
+    // Jackson's ObjectMapper as a bean we are using.
+    private final ObjectMapper objectMapper;
 
     // This annotation -> injects the value from application yml. Spring automatically reads config.
     @Value("${gemini.api.key}")
     private String apiKey;
 
     // Constructor injection
-    public GeminiService(WebClient.Builder webClientBuilder) {
+    public GeminiService(WebClient.Builder webClientBuilder, ObjectMapper objectMapper) {
         // intialize the webcilent to look for the 3rd party API url.
         this.webClient = webClientBuilder.baseUrl(
             "https://generativelanguage.googleapis.com")
             .build();
+        
+        this.objectMapper = objectMapper;
     }
 
-    public String analyzeTerms(String text) {
+    public AnalyzeResponse analyzeTerms(String text) throws Exception {
 
-        // This is the prompt that will be send to LLM for generating the output.
         // A more detailed prompt will generate a predictable outcome from the model
-        String prompt = """
+        String prompt = buildPrompt(text);
+
+        // Building the requestBody with Map -> then JAckson safely converts it into valid Json.
+        // Enhancement: Building request payload safely with JSON mode configured => Forces Gemini to send the reponse in JSon instead of markdown block eg: ```json...```
+        Map<String, Object> requestBody = Map.of(
+            "contents", List.of(
+                Map.of(
+                    "parts", List.of(
+                        Map.of(
+                            "text", prompt
+                        )
+                    )
+                )
+            ),
+            "generationConfig", Map.of(
+                "responseMimeType", "application/json"
+            )
+        );
+
+        // Searialize java object structure converted into JSON string.
+        String jsonRequest = objectMapper.writeValueAsString(requestBody);
+        
+        
+        /*
+            TO_DO: 
+                1. Replace blocking call with async processing
+                2. using kafka + Redis status tarcking.
+        */        
+        String response =  webClient.post()
+                .uri(uriBuilder -> uriBuilder
+                    .path("/v1beta/models/" + MODEL +":generateContent")
+                    .queryParam("key", apiKey)
+                    .build())
+                .header("Content-Type", "application/json")
+                .bodyValue(jsonRequest)
+                .retrieve()
+                .bodyToMono(String.class)
+                .timeout(Duration.ofSeconds(60))    // wait for a min for response => EXternal API should never hang
+                .block();       // for now forcing synchronous behaviour. [We will upgrade this by using Kafka]
+        
+        String aiText = extractTextFromGeminiResponse(response);
+
+        return objectMapper.readValue(aiText, AnalyzeResponse.class);
+    
+    }
+
+    // method: extract the needed information from the AI response strutcute...
+    private String extractTextFromGeminiResponse(String response) throws Exception {
+        
+        JsonNode root = objectMapper.readTree(response);
+
+        // Handle a check for the candidates presence in the Gemini response...
+        JsonNode candidates = root.path("candidates");
+
+        if(!candidates.isArray() || candidates.isEmpty()) {
+            throw new RuntimeException(
+                "Gemini returned no candidates"
+            );
+        }
+
+        return candidates.get(0)
+                .path("content")
+                .path("parts")
+                .get(0)
+                .path("text")
+                .asText();
+    }
+
+    // method: Takes care of building the Prompt for AI Model
+    private String buildPrompt(String text) {
+        return """
             You are an expert AI Terms and Conditions Risk Analyzer. Your task is to perform a rigorous legal and privacy risk assessment on the provided text.
 
             Analyze the text against standard consumer protection, privacy, and data safety benchmarks.
@@ -63,33 +146,7 @@ public class GeminiService {
             }
 
             Terms and Conditions to Analyze:
-            """ + text;
-        
-        String requestBody = """
-                {
-                  "contents": [
-                    {
-                        "parts": [
-                            {
-                                "text": "%s"
-                            }
-                        ]
-                    }
-                  ]                
-                }
-                """.formatted(prompt);
-        
-        // Updated explicitly to the robust, free-tier supported 'gemini-2.5-flash' string        
-        return webClient.post()
-                .uri(uriBuilder -> uriBuilder
-                    .path("/v1beta/models/gemini-2.5-flash:generateContent")
-                    .queryParam("key", apiKey)
-                    .build())
-                .header("Content-Type", "application/json")
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();       // for now forcing synchronous behaviour. [We will upgrade this by using Kafka]
+            """ + text; 
     }
 
 }
@@ -103,4 +160,32 @@ public class GeminiService {
     
     -- .block() => Webclient can be reactive/non-blocking by nature.
         -> For simplicity and testing purpose, we are keeping it disable for now.
+    
+    Enhancements:
+        1. objectMapper:
+            -- add as a spring bean. Spring already provides Jackson's Objectmapper as a Bean.
+            -- Helpful in case of:
+                1. Serializing request body.
+                2. parsing Gemini response.
+                3. Converting AI Json response to DTO.
+            -- used Constructor Injection to inject the dependency, as this ensures immutability, easier testing and recommended pattern.
+
+        2. Exception handling:
+            -- Not hanlded any particular exception for now, but have added to throw a general Exception from the AnalyzeTerm method block.
+        
+        3. Handling requestBody for AI:
+            -- Plane JSON can cause issue while formatting.
+            -- We used Map + Jackson's object Mapper, This ensures:
+                1. safe escaping.
+                2. cleaner code
+                3. easier modifications later
+                4. fewer malformed JSON bugs.
+        
+        4. AI Response Wait Limit:
+            -- AI reponse should not hang for unchecked time.
+            -- added additional property "timeout" in webClient builder that wait for 1 min for the API to return a response and then fail gracefully.
+
+        5. AI Response Handling:
+            -- Instead of returning a raw String from AI API response.
+            -- We take the string response from AI API ==> Extract the needed text ==> then mapp it DTO.
 */

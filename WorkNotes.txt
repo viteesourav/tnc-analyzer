@@ -242,3 +242,15 @@ Date: 26th May 2026
             - Instruction should be there with proper guardrails to prevent models hallucinating !
         -- Structured Response from Gemini API:
             - Need a custom DTO to pick important sections from the AI response -> Structure it into JSON and return to client.
+
+Date: 30th May 2025
+
+    -> GeminiService.java Enhancement:
+        1. Updated the responseBody format to AI -> using MAP + Jakson's objectMapper
+            -- Included new "configuration" key in the response body itself, also Map + objectMapper make sure the responseBody is valid.
+        2. Response type and code enhancement:
+            -- Instead of returning the string from AI response.
+            -- API response webclient enhancements:
+                -> Added a timeout key to make sure the API never hangs. In 1 min it either fail or return some response.
+            -- Now we are taking the string response ==> Pass it through a method to extract the "text" response ===> then convert this is analysisResponse DTO.
+            -- This make sure we have consisitent Response structure.
