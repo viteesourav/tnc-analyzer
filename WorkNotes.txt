@@ -254,3 +254,31 @@ Date: 30th May 2025
                 -> Added a timeout key to make sure the API never hangs. In 1 min it either fail or return some response.
             -- Now we are taking the string response ==> Pass it through a method to extract the "text" response ===> then convert this is analysisResponse DTO.
             -- This make sure we have consisitent Response structure.
+
+    -> Service Layer and Controller Layer Enhancements: 
+        -> The GeminiService Response is already coming as DTO -> So The main work in these layer is to add some Input validations.
+        -> Service Layer: 
+            -> We added validation for the text length -> If it exceeds we are throwing exception.
+            -> NOTE:
+                -- Here we do have a Spring way: Can add @Size in Request DTO on the field -> Controller will validate it.
+                -- But we want some specific validaiton in business layer -> thus added it manually.
+        -> Controller Layer:
+            -> Here we have added Input Null or Blank Check Validation. 
+            -> Spring Way: Added @NotBlank on the field in Request DTO --> @Valid in Contoller validates the input.
+        
+    -> Global Exception Handling & GeminiApiExcption Handler:
+        -> GeminiAPIException:
+            -- A Custom Exception handler that handles all API excetions specifically from that layer.
+            -- It extends a Runtime Exception and override's it's methods -> i.e just a named exception specific to that service.
+            -- usecase: 
+                we got a sepecific exception instead of a generic Runtime exception.
+        
+        -> GlobalException Handler:
+            -- Problem: This exceptions will throw a bigger cluttered stack trace to client that might not be relevant to user also.
+            -- Solution:
+                - Create a class That catches exceptions whenever that happens i.e Have to be managed by Spring.
+                - Then extract the information that we need to show to user -> rest we can log internally at server for developers.
+        
+        -> Logging support:
+            -- In GlobalException Handler -> added @Slf4j [from lombak] -> That injects a logger support to the class.
+            -- With this we are printing the error log in the server directly.

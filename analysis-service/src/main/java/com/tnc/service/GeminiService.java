@@ -8,9 +8,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tnc.dto.AnalyzeResponse;
+import com.tnc.exception.GeminiApiException;
 
 @Service
 public class GeminiService {
@@ -85,7 +87,7 @@ public class GeminiService {
     }
 
     // method: extract the needed information from the AI response strutcute...
-    private String extractTextFromGeminiResponse(String response) throws Exception {
+    private String extractTextFromGeminiResponse(String response) throws JsonProcessingException {
         
         JsonNode root = objectMapper.readTree(response);
 
@@ -93,7 +95,8 @@ public class GeminiService {
         JsonNode candidates = root.path("candidates");
 
         if(!candidates.isArray() || candidates.isEmpty()) {
-            throw new RuntimeException(
+            // throwing our own targeted custom exception...
+            throw new GeminiApiException(
                 "Gemini returned no candidates"
             );
         }
