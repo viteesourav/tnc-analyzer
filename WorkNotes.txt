@@ -87,6 +87,33 @@ Plan for the building the Project:
     -- Analysis does business logic
 
 
+### Steps to Start & Run the Application:
+
+    1. First if it's a fresh run: 
+        -- Install wsl [wsl --install in cmd] & install Reancher Desktop.
+        -- Then in the project dir: We have docker-compose.yml
+        -- open cmd: 
+            docker compose up -d 
+        -- The above spins up the Postgress 16 and other Infra.
+    
+    2. Go to application.yml of analysis-service: 
+        - update the GEMINI_API key to your Gemini_API_KEY.
+        - Location: https://aistudio.google.com/api-keys
+    
+    3. Open 3 seperate cmd: 
+        - ./gradlew :analysis-service:bootRun
+        - ./gradlew :auth-service:bootRun
+        - ./gradlew :api-gateway:bootRun
+
+    4. Once the services are up & running: 
+        - Open the Postman Collection in Postman.
+        - Steps:
+            1. APIs are protected: Hit the login API first.  --> You get JWT token.
+                - If new user -> Register the user First.
+            2. then With the token:
+                -> hit /analysis with the JSON payload.  
+
+
 
 ## Work Notes on Progress ##
 
