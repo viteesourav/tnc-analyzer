@@ -31,4 +31,14 @@ public class JwtUtil {
             return false;
         }
     }
+
+    // This method extrats the username -> added in JWTUtil.java in auth-service in generateToken method.
+    public static String extractUsername(String token) {
+        return Jwts.parserBuilder()
+                    .setSigningKey(KEY)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getSubject();
+    }
 }

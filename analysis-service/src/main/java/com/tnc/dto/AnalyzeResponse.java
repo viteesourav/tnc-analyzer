@@ -16,6 +16,7 @@ import lombok.Setter;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AnalyzeResponse {
 
+    private String title;
     private int safetyScore;
     private String summary;
     private List<FlagItem> redFlags;
@@ -50,4 +51,7 @@ public class AnalyzeResponse {
         Since we are using record FlagItem(...) ==> Jackson needs 17+ support -> We are on Java 21 so we are good !
     -- @JsonIgnoreProperties:
         -> This annotation ignores any additional field that AI response might add. It will ignore it.
+    
+    Enhancements:
+        -> added title filed, needed for storing in the Analysis_result table for Analysis history.
 */

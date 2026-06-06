@@ -11,13 +11,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tnc.config.AnalysisServiceConstants;
 import com.tnc.dto.AnalyzeResponse;
 import com.tnc.exception.GeminiApiException;
 
 @Service
 public class GeminiService {
     
-    private static final String MODEL = "gemini-2.5-flash";   // Constant for the model used for Gemini API -  robust, free-tier supported.
     private final WebClient webClient;
 
     // Jackson's ObjectMapper as a bean we are using.
@@ -70,7 +70,7 @@ public class GeminiService {
         */        
         String response =  webClient.post()
                 .uri(uriBuilder -> uriBuilder
-                    .path("/v1beta/models/" + MODEL +":generateContent")
+                    .path("/v1beta/models/" + AnalysisServiceConstants.MODEL +":generateContent")
                     .queryParam("key", apiKey)
                     .build())
                 .header("Content-Type", "application/json")
@@ -135,6 +135,7 @@ public class GeminiService {
 
             ### Output Schema:
             {
+                "title": "A short, descriptive name identifying the document or company (e.g., 'Google Terms of Service Analysis').",
                 "safetyScore": 0,
                 "summary": "A concise, 2-3 sentence overview highlighting the overall tone and biggest takeaway of the document.",
                 "redFlags": [
@@ -191,4 +192,7 @@ public class GeminiService {
         5. AI Response Handling:
             -- Instead of returning a raw String from AI API response.
             -- We take the string response from AI API ==> Extract the needed text ==> then mapp it DTO.
+
+    Enhancements:
+        1. Added an additional filed "title" in the Gemini Response structure and in prompt to fetch a short title for Analysis history.
 */

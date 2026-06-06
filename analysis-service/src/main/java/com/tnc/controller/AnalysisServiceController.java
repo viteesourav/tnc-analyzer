@@ -3,6 +3,7 @@ package com.tnc.controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tnc.dto.AnalyzeRequest;
@@ -31,11 +32,12 @@ public class AnalysisServiceController {
 
     // This is actual API to work on the Analysising the Terms and conditions...
     // NOTE: @Valid -> Triggers field level validaitons mentioned in the DTO -> here we have @NotBlank on text field.
+    // Extract the username coming in the request header --> Pass it to the service layer.
     @PostMapping("/analyze")
-    public AnalyzeResponse analyze(@Valid @RequestBody AnalyzeRequest request) throws Exception {
-        
+    public AnalyzeResponse analyze(@Valid @RequestBody AnalyzeRequest request, @RequestHeader("X-Authenticated-User") String username) throws Exception {
+
         // call the service layer...
-        return analysisService.analyzeText(request.getText());
+        return analysisService.analyzeText(request.getText(), username);
     }
     
 }
@@ -54,5 +56,9 @@ public class AnalysisServiceController {
         -> for the Controller layer in AnalyzeResponse: We added @Valid  -> In DTO Analyzerequest -> added field as @NotBlank.
         -> @NotBlank comes from "org.springframework.boot:spring-boot-starter-validation"
         -> It checks for Null, "" or " " input field test cases  --> Throws MethodArgumentNot Valid Exception.
+    
+    Enhancements:
+        -> Added @RequestHeader --> This can fetch any particular value from the requestHeader.
+            -> In our case Gateway service before forwarding the req, adds the username in requestHeader -> which is extracted here.
 
 */

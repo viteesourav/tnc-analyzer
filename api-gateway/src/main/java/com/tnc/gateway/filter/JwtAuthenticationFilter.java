@@ -4,6 +4,7 @@ import com.tnc.gateway.util.JwtUtil;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 
 // Role: Intercept Incoming HTTP Requests => Check for the token, validate it and then let it pass.
@@ -44,7 +45,21 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                 return exchange.getResponse().setComplete();
             }
 
-            return chain.filter(exchange);  // This line reached means the token is successful !
+            // Now as the token is verified, we need to extract the username from it ===> add it to the header of the forwarded request.
+            String username = JwtUtil.extractUsername(token);
+
+            // we need to add this username to header in the request that is forwared to analysis service.
+            ServerHttpRequest modifiedRequest = 
+                exchange.getRequest()
+                        .mutate()
+                        .header("X-Authenticated-User", username)
+                        .build();
+
+            return chain.filter(
+                exchange.mutate()
+                        .request(modifiedRequest)
+                        .build()
+            );  // This line reached means the token is successful !
         };
     }
 

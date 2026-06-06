@@ -113,7 +113,10 @@ Plan for the building the Project:
             2. then With the token:
                 -> hit /analysis with the JSON payload.  
 
-
+    5. To stop all running services:
+        - open cmd:
+            ./gradlew --stop 
+        - Send command to all gradlew services to stop !!
 
 ## Work Notes on Progress ##
 
@@ -321,3 +324,44 @@ Date: 30th May 2025
             3. {
                 text: "We may share your personal data with third-party advertisers."
             }   ==>    Got a 200 OK response with Proper JSON Format.
+
+Date: 6th June 2026
+
+    ## Project Status:
+        1. Authentication       --> [Completed]
+        2. Gateway Service      --> [Completed]
+        3. AI Integration       --> [Completed]
+
+        Tested the API's using postman, verified the results are as Expected
+
+        4. Store history            --> JPA Support added to Analysis-service to connect to db.
+        5. User Dashboard           --> APIs for Showing Analysis history, Dashboard Analytics, Timeline, Source Analytics.
+        6. Redis Caching            ---> SHA256(originalText) for quick caching and prevents Redundent API calls.
+        7. Kafka async Processing.  --> AnlysisCompletedEvent [Produces]  + Consumers stores: username, score, summary & Source.
+        8. PDF support
+        9. Image support
+        10. Chrome Extension
+
+## Store Past Analytics History for Dashboard Analytics:
+    -- AnalysisService, Will now updated to support storing the alaysis result in database for Dashbaord Analytics.
+        -> Added the JPA dependency in analysis Service -> For database connection.
+        -> Enums files are created for Analysis Source and Analysis Status --> Provides pre-defined Options.
+        -> New AnalysisResult DTO Class handles the data-structure needed to store in DB.
+    
+    -- Microservice Way to extract username from the jwt token.
+        -> So my analysis-service, I need the username to store in the anlysis-result.
+        -> but "username" is set to subject in JWT token, which is created at auth-service and validated in gateway service.
+        -> Approach:
+            1. After the gateway successfully validates the jwt token "JwtAuthenticationFilter.java" --> Gateway service adds a header.
+                eg: X-Authenticated-User: sourav.
+            This ensures:
+                1. JWT validation logic stays only with gate-way service.
+                2. Analysis service doesnot need to know about authentication.
+                3. Easier to replace later JWT with OAuth,Auth0, keycloak.
+                4. Cleaner microservice concerns.
+            
+            2. This header can be consumed by the AnalysisContontroller --> this can be passed to service --> service can save the result in DB.
+
+    -- Added a common config/AnalysisServiceConstants file:
+        -> Followed Java design pattern for Utility class [final + private constructor]
+        -> The constants shared in GeminiService and AnlaysisService is put here in common place.
