@@ -119,9 +119,9 @@ public class GeminiService {
             ### Definitions & Classification Criteria:
             1. "safetyScore": An integer from 0 to 100. 
             - 90-100: Exceptionally user-friendly, minimal data collection, no predatory clauses.
-            - 60-80: Standard commercial terms, typical data tracking, standard waivers.
-            - 30-50: Concerning clauses, heavy data sharing, mandatory arbitration without opt-out.
-            - 0-20: Highly predatory, aggressive data monetization, total waiving of user rights.
+            - 60-89: Standard commercial terms, typical data tracking, standard waivers.
+            - 30-59: Concerning clauses, heavy data sharing, mandatory arbitration without opt-out.
+            - 0-29: Highly predatory, aggressive data monetization, total waiving of user rights.
             2. "redFlags": Severe risks. Examples: Automatic monetization/selling of user biometrics/content without explicit consent, unilateral changes to terms without notice, waiving the right to sue for gross negligence, hidden fees.
             3. "moderateFlags": Notable risks requiring awareness. Examples: Automatic subscription renewals, targeted advertising tracking, broad but standard licensing of user-generated content, mandatory arbitration clauses.
             4. "safeClauses": High-value user protections. Examples: Explicit opt-outs for data sharing, clear deletion/"right to be forgotten" procedures, limited liability caps for the user.

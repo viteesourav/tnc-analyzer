@@ -334,7 +334,7 @@ Date: 6th June 2026
 
         Tested the API's using postman, verified the results are as Expected
 
-        4. Store history            --> JPA Support added to Analysis-service to connect to db.
+        4. Store history            --> JPA Support added to Analysis-service to connect to db. -> [Completed - 6th June 27]
         5. User Dashboard           --> APIs for Showing Analysis history, Dashboard Analytics, Timeline, Source Analytics.
         6. Redis Caching            ---> SHA256(originalText) for quick caching and prevents Redundent API calls.
         7. Kafka async Processing.  --> AnlysisCompletedEvent [Produces]  + Consumers stores: username, score, summary & Source.
@@ -365,3 +365,66 @@ Date: 6th June 2026
     -- Added a common config/AnalysisServiceConstants file:
         -> Followed Java design pattern for Utility class [final + private constructor]
         -> The constants shared in GeminiService and AnlaysisService is put here in common place.
+
+
+Date: 11th June 2026
+
+    -- Architecture so far: 
+        Frontend / Client
+            │
+            ▼
+        API Gateway (JWT Validation)
+            │
+            ▼
+        Analysis Service
+                │
+                ├── Validate Request
+                ├── Call Gemini API
+                ├── Parse AI Response
+                ├── Save Analysis History ✅
+                └── Return Response
+                        │
+                        ▼
+                PostgreSQL ✅
+
+    -- History APIs for History Dashboard:
+        - users should be able to retrive past History:
+        - API Endpoints:
+            GET /history
+            GET /history/{id}
+            GET /history/recent 
+        - Tasks:
+            1. Create a history end-point  --> This returns all histories from database.
+            2. Sorted fetching history  --> ORDER BY createdAt DESC  --> we get latest history first.
+            3. Instead of returning all the history -> return only the loggedin user's history --> This uses filter while fetching.
+        
+    NOTE: Introduction of Mapper Classes:
+        -- Small architecture update:
+                Controller --> Service --> Mapper --> Entity <=> DTO  --> Repository
+        -- Previously, Service used to directly call Repository. Now a bridge of Mapper classes is introducted to keep entities and API contract nicely seperated.
+        -- This is considered a good architecture pattern.
+        -- eg: we received the Results from the db -> then we use .stream() + .map ==> to pick and create a new object with only those field needed by the client.
+        Problem:
+            -- currently we have the service layer --> directly saving in the database. i.e if we follow the same and directly fetch from database as AnalysisResult.
+                1. API becomes tightly coupled with db.
+                2. any new field added in future will leak into client, unintentional but could be risky. 
+        Solution:
+            -- We Introduce a Response DTO instead --> this picks only those fields that we intend to show in client.
+    
+    -- Issue Navigation and Contoller Updates:
+        Problem:
+            - After making the above changes: /analyze was working but /history was failing with 404 not Found.
+        Root Cause:
+            - The Api-gateway only allows /analyze/** to redirect to analysis-service -> Rest all are blocked.
+        Solutions:
+            1. First updated the Controller to have @RequestMapping(/analyses). -> Removed the route from analyzeText method.
+                - this make sure the route /analyses still by default hit this method.
+                - Now history API is: GET /analyses
+                - Now health API is:  GET /analyses/health
+            2. updated the application.yml of api-gateway service:
+                - updated the predicate path from /analysis/**   to /analyses/**.
+        
+        NOTE:
+            - by moving with a collection route format: /analyses, we are defining the actions based on the HTTP method.
+            - so eg: POST /analyses  --> means analyses input & save to db.
+                    GET /analyses   --> connect to db, fetch all relevant saved details of current user. basically fetching history without explictly using "/history route"

@@ -43,7 +43,7 @@
           "bearer": [
             {
               "key": "token",
-              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzgwMTQ0MDA1LCJleHAiOjE3ODAxNDc2MDV9.fKd3viiSKhOu8I2ad4Dvht_JGMpGSwpAEtv1HEHNjF0",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzgxMTk0MzEwLCJleHAiOjE3ODExOTc5MTB9.906D8LUCMHvxpcf2pWqyXalEqEME67y-DRe8vfzG05k",
               "type": "string"
             }
           ]
@@ -60,14 +60,43 @@
           }
         },
         "url": {
-          "raw": "http://localhost:8080/analyze",
+          "raw": "http://localhost:8080/analyses",
           "protocol": "http",
           "host": [
             "localhost"
           ],
           "port": "8080",
           "path": [
-            "analyze"
+            "analyses"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "analyses",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzgxMTk0MzEwLCJleHAiOjE3ODExOTc5MTB9.906D8LUCMHvxpcf2pWqyXalEqEME67y-DRe8vfzG05k",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/analyses",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "analyses"
           ]
         }
       },

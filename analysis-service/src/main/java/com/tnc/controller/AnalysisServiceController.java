@@ -1,18 +1,23 @@
 package com.tnc.controller;
 
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tnc.dto.AnalyzeRequest;
 import com.tnc.dto.AnalyzeResponse;
+import com.tnc.dto.HistoryResponse;
 import com.tnc.service.AnalysisService;
 
 import jakarta.validation.Valid;
 
 @RestController
+@RequestMapping("/analyses")
 public class AnalysisServiceController {
 
     // Let's inject the dependency here for AnalysisService....
@@ -33,11 +38,18 @@ public class AnalysisServiceController {
     // This is actual API to work on the Analysising the Terms and conditions...
     // NOTE: @Valid -> Triggers field level validaitons mentioned in the DTO -> here we have @NotBlank on text field.
     // Extract the username coming in the request header --> Pass it to the service layer.
-    @PostMapping("/analyze")
+    @PostMapping
     public AnalyzeResponse analyze(@Valid @RequestBody AnalyzeRequest request, @RequestHeader("X-Authenticated-User") String username) throws Exception {
 
         // call the service layer...
         return analysisService.analyzeText(request.getText(), username);
+    }
+
+    // This API endpoint manages user history.
+    @GetMapping
+    public List<HistoryResponse> getHistory(@RequestHeader("X-Authenticated-User") String username) throws Exception {
+
+        return analysisService.getHistory(username);
     }
     
 }
@@ -60,5 +72,29 @@ public class AnalysisServiceController {
     Enhancements:
         -> Added @RequestHeader --> This can fetch any particular value from the requestHeader.
             -> In our case Gateway service before forwarding the req, adds the username in requestHeader -> which is extracted here.
+    
+    Enhancements:
+        -> new "/history" API -> this allows the current loggedin user to view his past analystics.
+        -> NOTE:
+            -- here we are not taking username from restParam or queryParm like:
+                GET /history?username=sourav or GET /history/sourav
+            -- we are using: GET /history  --> this takes username securly from JWT token [api-gateway intercepts, extract usernmae, put it in request header]
+        
+    Problem:
+        - After making the above changes: /analyze was working but /history was failing with 404 not Found.
+    Root Cause:
+        - The Api-gateway only allows /analyze/** to redirect to analysis-service -> Rest all are blocked.
+    Solutions:
+        1. First updated the Controller to have @RequestMapping(/analyses). -> Removed the route from analyzeText method.
+            - this make sure the route /analyses still by default hit this method.
+            - Now history API is: GET /analyses
+            - Now health API is:  GET /analyses/health
+        2. updated the application.yml of api-gateway service:
+            - updated the predicate path from /analysis/**   to /analyses/**.
+    
+    NOTE:
+        - by moving with a collection route format: /analyses, we are defining the actions based on the HTTP method.
+        - so eg: POST /analyses  --> means analyses input & save to db.
+                 GET /analyses   --> connect to db, fetch all relevant saved details of current user. basically fetching history without explictly using "/history route"
 
 */
