@@ -3,6 +3,10 @@ package com.tnc.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.tnc.config.AnalysisServiceConstants;
@@ -55,14 +59,24 @@ public class AnalysisService {
         return response;
     }
     
-    // This method -> takes username [passed in the header by gate-way service]
-    // calls repository -> fetches records by username sorted by createdDate.
-    public List<HistoryResponse> getHistory(String username) {
+    // This method -> takes username [passed in the header by gate-way service] -> calls repository -> fetches records by username sorted by createdDate.
+    // Updated: added Pagination support.
+    public Page<HistoryResponse> getHistory(String username, int page, int size) {
         
-        return analysisResultRepository.findByUsernameOrderByCreatedAtDesc(username)
-                                       .stream()
-                                       .map(this::mapToHistoryResponse)
-                                       .toList();
+        // define how we want the data to be sorted...
+        Pageable pageable = PageRequest.of(
+            page,
+            size,
+            Sort.by("createdAt").descending()
+        );
+        
+        // fetch the current page from repository
+        Page<AnalysisResult> results = analysisResultRepository.findByUsername(username, pageable);
+
+        // Map to page of AnalysisResult [fields from databases] to HistoryResponse [fields we want to send to client]
+        // using .map() built-in from Page -> preserves the paginatation meta-data [totalPages, pageNumber, pageSize] ==> Very efficient than using List
+        return results.map(this::mapToHistoryResponse);
+                                       
     }
 
     // private method -> role is to pick only those filed that needs to be shown in client.
@@ -127,4 +141,10 @@ public class AnalysisService {
                 -- NOTE: 
                     - here we are crating a new HistoryResponse from stratch with the extracted fields from AnalysisResult.
                     - The RiskLevel feild is something that is dependent on the safetyScore -> so the RiskLevel Eunum class handles which level to show based on the score.
+
+    Enhancements:
+        -- Adding Pagaination support here on the getHistory method.
+            -> Defining how we want tthe data sorted and map it to HistoryResponse structure.
+            -> the use of Page.map() --> follows: Page -> map() -> Page<Response>
+            -> it preserves: totoalPages, totalElements, pageNumber and pageSize. 
 */

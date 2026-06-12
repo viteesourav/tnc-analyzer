@@ -428,3 +428,21 @@ Date: 11th June 2026
             - by moving with a collection route format: /analyses, we are defining the actions based on the HTTP method.
             - so eg: POST /analyses  --> means analyses input & save to db.
                     GET /analyses   --> connect to db, fetch all relevant saved details of current user. basically fetching history without explictly using "/history route"
+
+    -- Pagiantion, Sorting, Fitlering, searching with Keyword APIs on Analyses:
+        1. Pagiantion:
+            -- with time data might grow -> It's better to receive the data in chunks. first 50, then 100, and so on.
+            -- enpoint URL:
+                GET analyses?page=0&&size=10  --> Fetches first 10 records in the list.
+                GET analyses?page=1&&size=10  --> Fetches next 10 records in the list.
+            -- Appraoch:
+                1. First change the JPARepo method from custom method call to use Pageable to received sorted dynamically data using Page & pageable.
+                    - spring receives sorted records dynamically from pageable.
+                    - spring data JPA, understands you added pageable here -> it automatically adds LIMT and OFFSET Clause in the SQL.
+                    eg: 
+                        SELECT * FROM analysis_result WHERE username = ?
+                        ORDER BY created_at DESC LIMIT 10 OFFSET 0;
+                2. Serice Layer: it will not be "List", it is "page" now --> page.map also exist.
+                3. Controller: we will be adding new RequestParams -> page and size and provide their default values.
+            - New things used:
+                - Page, pageable from org.springframework.data.domain.

@@ -2,11 +2,13 @@ package com.tnc.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tnc.dto.AnalyzeRequest;
@@ -47,9 +49,13 @@ public class AnalysisServiceController {
 
     // This API endpoint manages user history.
     @GetMapping
-    public List<HistoryResponse> getHistory(@RequestHeader("X-Authenticated-User") String username) throws Exception {
+    public Page<HistoryResponse> getHistory(
+        @RequestHeader("X-Authenticated-User") String username,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
+    ) throws Exception {
 
-        return analysisService.getHistory(username);
+        return analysisService.getHistory(username, page, size);
     }
     
 }
@@ -96,5 +102,10 @@ public class AnalysisServiceController {
         - by moving with a collection route format: /analyses, we are defining the actions based on the HTTP method.
         - so eg: POST /analyses  --> means analyses input & save to db.
                  GET /analyses   --> connect to db, fetch all relevant saved details of current user. basically fetching history without explictly using "/history route"
+
+    Enhancements:
+        -> For the fetching analyses results -> adding pagiantion support.
+            -> Service Layer already takes care custom sorting based on "createdAt" + mapping AnalysisResult DTO to HistoryResponse DTO.
+            -> here we are defaulting the pageNo -> 0 and size -> 10 by default.
 
 */

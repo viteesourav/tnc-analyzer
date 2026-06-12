@@ -2,6 +2,8 @@ package com.tnc.repository;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.tnc.entity.AnalysisResult;
@@ -9,7 +11,7 @@ import com.tnc.entity.AnalysisResult;
 public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, Long> {
 
     // Fetch Entire history timeline for a single user sorted by newest first.
-    List<AnalysisResult> findByUsernameOrderByCreatedAtDesc(String username);
+    Page<AnalysisResult> findByUsername(String username, Pageable pageable);
     
 }
 
@@ -27,4 +29,8 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
             findTop5ByUsernameOrderByCreatedAtDesc()
             existsByUsername()
             countByRiskLevel() ... etc
+
+    Enahancement:
+        -- Adding pagination support using Pageable from org.springframework.data.domain.
+        -- Spring data JPA, understands pageable and automatically adds LIMTI and OFFEST clauses in the SQL.
 */
