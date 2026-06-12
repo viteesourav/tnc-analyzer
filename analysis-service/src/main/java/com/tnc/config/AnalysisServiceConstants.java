@@ -1,5 +1,7 @@
 package com.tnc.config;
 
+import java.util.Set;
+
 /*
     This is a classic java design pattern to create utility or constant class.
     To prevenet the class from instanciating, making the class as final + private constructor totally locks it down.
@@ -20,4 +22,11 @@ public final class AnalysisServiceConstants {
 
     public static final String MODEL = "gemini-2.5-flash";   // Constant for the model used for Gemini API -  robust, free-tier supported.
     public static final int MAX_TEXT_LENGTH = 50_000;      // Constant for verifying the max text length in input
+
+    // This set constant white list's allowed sortBy for fetching analyses results.     
+    public static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+        "createdAt",
+        "safetyScore",
+        "title"
+    );
 }

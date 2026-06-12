@@ -1,5 +1,6 @@
 package com.tnc.controller;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -11,9 +12,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tnc.config.AnalysisServiceConstants;
 import com.tnc.dto.AnalyzeRequest;
 import com.tnc.dto.AnalyzeResponse;
 import com.tnc.dto.HistoryResponse;
+import com.tnc.entity.RiskLevel;
 import com.tnc.service.AnalysisService;
 
 import jakarta.validation.Valid;
@@ -51,11 +54,34 @@ public class AnalysisServiceController {
     @GetMapping
     public Page<HistoryResponse> getHistory(
         @RequestHeader("X-Authenticated-User") String username,
+        @RequestParam(required = false) String riskLevel,
+        @RequestParam(required = false) String keyword,
+        @RequestParam(defaultValue = "createdAt") String sortBy,
+        @RequestParam(defaultValue = "desc") String direction,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) throws Exception {
 
-        return analysisService.getHistory(username, page, size);
+        // NOTE: for RiskLevel, when client sends an invalid value, Spring throws MethodArgumentTypeMismatchedException.
+        if (riskLevel != null && !riskLevel.isEmpty()) {
+            try {
+                RiskLevel.valueOf(riskLevel.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                    "Invalid riskLevel. Allowed values: " + 
+                    Arrays.toString(RiskLevel.values())
+                );
+            }
+        }
+
+        // check if the sortBy is valid...
+        if(!AnalysisServiceConstants.ALLOWED_SORT_FIELDS.contains(sortBy)) {
+            throw new IllegalArgumentException(
+                "Invalid sort field"
+            );
+        }
+
+        return analysisService.getHistory(username, riskLevel, keyword, sortBy, direction, page, size);
     }
     
 }
@@ -107,5 +133,16 @@ public class AnalysisServiceController {
         -> For the fetching analyses results -> adding pagiantion support.
             -> Service Layer already takes care custom sorting based on "createdAt" + mapping AnalysisResult DTO to HistoryResponse DTO.
             -> here we are defaulting the pageNo -> 0 and size -> 10 by default.
+        -> Added support for:
+            1. Defualt values on Sorting and Filtering.
+            2. Filter using RiskLevel and text keyword.
+        
+        NOTE: since Keyword and RiskLevel are not mandatory -> they must be marked as required false -> else Request controller will throw error.
+
+            Problem:
+                There is currently no check on the String values on sortBy and RiskLevel as they are String and Enums respectively.
+            Solution:
+                We can create a white list of allowed sortBy Fields. If anything else, throw an exception.
+
 
 */

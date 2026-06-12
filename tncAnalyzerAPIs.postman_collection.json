@@ -81,7 +81,7 @@
           "bearer": [
             {
               "key": "token",
-              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzgxMTk0MzEwLCJleHAiOjE3ODExOTc5MTB9.906D8LUCMHvxpcf2pWqyXalEqEME67y-DRe8vfzG05k",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzgxMjgwMzY4LCJleHAiOjE3ODEyODM5Njh9.NjJhMxPJLYSCpVstmJIlmoWdWF_p7heJV_8uGlfSq-0",
               "type": "string"
             }
           ]
@@ -89,7 +89,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8080/analyses",
+          "raw": "http://localhost:8080/analyses?page=0&size=10&keyword=consent&sortBy=createdAt&direction=desc",
           "protocol": "http",
           "host": [
             "localhost"
@@ -97,6 +97,37 @@
           "port": "8080",
           "path": [
             "analyses"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "10"
+            },
+            {
+              "key": "riskLevel",
+              "value": "HIGH_RISK",
+              "type": "text",
+              "disabled": true
+            },
+            {
+              "key": "keyword",
+              "value": "consent",
+              "type": "text"
+            },
+            {
+              "key": "sortBy",
+              "value": "createdAt",
+              "type": "text"
+            },
+            {
+              "key": "direction",
+              "value": "desc",
+              "type": "text"
+            }
           ]
         }
       },

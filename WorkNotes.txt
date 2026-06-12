@@ -430,6 +430,28 @@ Date: 11th June 2026
                     GET /analyses   --> connect to db, fetch all relevant saved details of current user. basically fetching history without explictly using "/history route"
 
     -- Pagiantion, Sorting, Fitlering, searching with Keyword APIs on Analyses:
+        NOTE:
+            -- Important Architectural Pattern here: So to implement the above data handling methods we got 2 options:
+                1. Let the same url handles it.
+                    eg: GET /analyses?
+                             page=0&&size=10
+                             &riskLevel=?
+                             &keyword = ?
+
+                2. for each of them different urls exist.
+                    GET /analyses/high-risk
+                    GET /analyses/search
+                    GET /analyses/filter
+            -- Advantages of using Option 1 over Option 2:
+                - As the system scales, APIs will be easier to maintain.
+                - easy to extend, Industry stnadards.
+                - Frontend can combine filters naturally.
+            NOTE:
+                - When we combine multiple filter items as RequestParams to the same url. One thing we should remember:
+                    
+                    "all this filter options are optional, always define default values for them"
+
+
         1. Pagiantion:
             -- with time data might grow -> It's better to receive the data in chunks. first 50, then 100, and so on.
             -- enpoint URL:
@@ -444,5 +466,65 @@ Date: 11th June 2026
                         ORDER BY created_at DESC LIMIT 10 OFFSET 0;
                 2. Serice Layer: it will not be "List", it is "page" now --> page.map also exist.
                 3. Controller: we will be adding new RequestParams -> page and size and provide their default values.
-            - New things used:
-                - Page, pageable from org.springframework.data.domain.
+            -- New things used:
+                - Page, pageable, PageRequest.of(), Page.map() from org.springframework.data.domain.
+        
+        2. Filtering + Searching Support:
+            NOTE:
+                -- Now Traditional Approach is for each of this usecase, you add additional methods in the JPARepository. -> Which is correct and it will work.
+                -- But new functionality -> again new methods in JPA -> overhead to maintain all this over time.
+                Solution:
+                    JPA Specifications:
+                        -> This is very common "enterprise pattern". You build it like a lego block -> add whatever needed only.
+                        -> username filter + Risk filter + keyword filer + Date Filter (Future scope) + Safety score Filter (Future Scope).
+                Advantages:
+                    -- Specifications allow us to build dynamic queries by combining reusable predicates at runtime, avoiding repository method explosion and making filters highly extensible.
+                Appraoch:
+                    1. First you add JPASpecificationExecutor to the JPARepository: This gives ability to pass Specification object to all standard findAll() queires.
+                        -- JpaRepository handles:
+                            save()
+                            findBy()
+                            delete()
+                            findAll()
+                        -- JpaSepecificationExecutor adds:
+                            findAll(specification spec)
+                            findAll(specification spec, Pageable pageable)
+                            count(spec)
+                            exists(spec)
+                    2.  Create a new specification package:
+                        -> this one class AnalysisResultSpecification will hold multiple filter builder.
+                        -> Inside the class -> define your own spefication method:
+                            -- with the params it would expects like username, riskLevel or keyword filter values.
+                            -- then inside it you can have the logic to chain this multi-filter implementations.
+                            eg:
+                                root                        ---> from analysis_result.
+                                root.get("username")        ---> analysis_result.username 
+                                criteriaBuilder.equal(...)  ---> where usename = ?
+                            so this below means:
+                                criteriaBuilder.equal(root.get("username"), username)  --> where usename = 'john';
+                    3. In Service Layer:
+                        -> build the specification -> check the input received and build the filter chain.
+                        -> then instead of calling the individual derived method, use findAll(specification, pageable).
+            
+        3. Dynamic Sorting:
+            -- Accept Additional inputs from Client, on the sortBy and Sort direction -> ascending or descring.
+            -- In Service Layer: Instead of hardcoding the PageRequest, dynamically create the Sorting.
+    
+    ## After the above changes, now our API for fetching history analysis beautifully supports:
+        GET /analyses
+            ?username=<currentLoggedInUser>
+            &keyword=privacy
+            &riskLevel=CRITICAL
+            &sortBy=createdAt
+            &direction=desc
+            &page=0
+            &size=10
+
+        Concepts Implemented:
+            ✅ Pagination using Pageable, Page and Page.map()
+            ✅ Dynamic Filtering + Sorting using Jpa Specification
+            ✅ Keyword Search
+            ✅ Dynamic Specification Composition
+            ✅ User Isolation (username) -> taken form request header.
+            ✅ DTO Mapping  -> used mapper appraoch to seperate result fields from client's field.
+            ✅ Clean Architecture

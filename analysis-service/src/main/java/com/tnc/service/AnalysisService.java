@@ -1,12 +1,12 @@
 package com.tnc.service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import com.tnc.config.AnalysisServiceConstants;
@@ -17,6 +17,7 @@ import com.tnc.entity.AnalysisSource;
 import com.tnc.entity.AnalysisStatus;
 import com.tnc.entity.RiskLevel;
 import com.tnc.repository.AnalysisResultRepository;
+import com.tnc.specification.AnalysisSpecification;
 
 @Service
 public class AnalysisService {
@@ -61,17 +62,27 @@ public class AnalysisService {
     
     // This method -> takes username [passed in the header by gate-way service] -> calls repository -> fetches records by username sorted by createdDate.
     // Updated: added Pagination support.
-    public Page<HistoryResponse> getHistory(String username, int page, int size) {
+    public Page<HistoryResponse> getHistory(String username, String riskLevel, String keyword, String sortBy, String direction, int page, int size) {
         
-        // define how we want the data to be sorted...
+        // define how we want the data to be sorted -> Keeping it dynamic
+        Sort.Direction sortDirection = direction.equalsIgnoreCase("asc")
+                                       ? Sort.Direction.ASC
+                                       : Sort.Direction.DESC;
+
         Pageable pageable = PageRequest.of(
             page,
             size,
-            Sort.by("createdAt").descending()
+            Sort.by(sortDirection, sortBy)
         );
         
-        // fetch the current page from repository
-        Page<AnalysisResult> results = analysisResultRepository.findByUsername(username, pageable);
+        // Creating the Specification builder for dynamic handle the filtering + Searching.
+        Specification<AnalysisResult> specification = Specification.where(AnalysisSpecification.hasUsername(username))
+                                                                   .and(AnalysisSpecification.hasRiskLevel(riskLevel != null ? RiskLevel.valueOf(riskLevel.toUpperCase()): null))
+                                                                   .and(AnalysisSpecification.hasKeyword(keyword));
+        
+        // fetch the current page from JPArepository
+        // update: we are sending the above specification here dynamically based on the filter selected.
+        Page<AnalysisResult> results = analysisResultRepository.findAll(specification, pageable);
 
         // Map to page of AnalysisResult [fields from databases] to HistoryResponse [fields we want to send to client]
         // using .map() built-in from Page -> preserves the paginatation meta-data [totalPages, pageNumber, pageSize] ==> Very efficient than using List
@@ -147,4 +158,8 @@ public class AnalysisService {
             -> Defining how we want tthe data sorted and map it to HistoryResponse structure.
             -> the use of Page.map() --> follows: Page -> map() -> Page<Response>
             -> it preserves: totoalPages, totalElements, pageNumber and pageSize. 
+        
+        -- To support multiple filter: we have removed specific methods from JpaRepo.
+            -> Instead we are using Jpa Specifications -> Like a builder, that stacks filters if they are needed.
+        
 */
