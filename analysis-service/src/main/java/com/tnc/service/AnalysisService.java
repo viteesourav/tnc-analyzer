@@ -10,6 +10,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import com.tnc.config.AnalysisServiceConstants;
+import com.tnc.dto.AnalysisStatsResponse;
 import com.tnc.dto.AnalyzeResponse;
 import com.tnc.dto.HistoryResponse;
 import com.tnc.entity.AnalysisResult;
@@ -103,6 +104,36 @@ public class AnalysisService {
                 result.getCreatedAt()
             );
     }
+
+    // @method -> This method is responsible for fetching Analysis Stats of logged-in user.
+    public AnalysisStatsResponse getAnalysisStats(String username) {
+
+        long totalAnalysesCount = analysisResultRepository.countByUsername(username);
+
+        // fetches the now of records per user per Analysis State count.
+        long safeCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, 90, 100);
+        long moderateCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, 60, 89);
+        long highRiskCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, 30, 59);
+        long criticalCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, 0, 29);
+
+        Double avgSafetyScore = analysisResultRepository.findAverageSafetyScoreByUsername(username);
+        
+        // Return a new AnalysisStatusResponse, prepared from the above values.
+        // NOTE: case if a user has no records -> then avgSafetyScroe will give null -> Handle it explicitly.
+        return AnalysisStatsResponse.builder()
+                                    .totalAnalyses(totalAnalysesCount)
+                                    .safeCount(safeCount)
+                                    .moderateCount(moderateCount)
+                                    .highRiskCount(highRiskCount)
+                                    .criticalCount(criticalCount)
+                                    .averageSafetyScore(
+                                        avgSafetyScore == null 
+                                            ? 0.0
+                                            : Math.round(avgSafetyScore * 100.0) / 100.0
+                                    )
+                                    .build();
+
+    }
 }
 
 
@@ -161,5 +192,8 @@ public class AnalysisService {
         
         -- To support multiple filter: we have removed specific methods from JpaRepo.
             -> Instead we are using Jpa Specifications -> Like a builder, that stacks filters if they are needed.
+
+        -- Added a new method to handle the business logic for fetching Analysis Stats meta-data per user.
+            -> This integrates to AnalysisResultRepository -> which has dervied methods and JPQL queries.
         
 */

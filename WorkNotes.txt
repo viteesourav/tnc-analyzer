@@ -38,13 +38,34 @@ Plan for the building the Project:
         -> Prompt Designing
 
 
-### Project Architecture
+### Project Architecture:
 
     Gateway → Auth → Analysis Service → Kafka → Worker → AI
                          ↓
                       Postgres
                          ↓
                        Redis
+
+        
+    Client/React UI (Future)
+        │
+        ▼
+    API Gateway [Redirection of Requests]
+        │
+        ├── Auth Service
+        │       ├── Register
+        │       ├── Login
+        │       └── JWT Generation
+        │
+        └── Analysis Service
+                ├── Gemini Integration
+                ├── Save Analysis
+                ├── History API
+                └── Dashboard APIs (Upcoming)
+
+    PostgresSQL
+        ├── users [stores user metadata]
+        └── analysis_result [Stores meta-data on analysis for history/stats APIs.]
 
 
 ### Prject Techstack
@@ -528,3 +549,59 @@ Date: 11th June 2026
             ✅ User Isolation (username) -> taken form request header.
             ✅ DTO Mapping  -> used mapper appraoch to seperate result fields from client's field.
             ✅ Clean Architecture
+
+
+Date: 13th June 2026
+
+    -- Work on Get analyses/{id} -> View Analysis Details  [Removed, Not Applicable ]
+        -> Scope of work:
+            -- From GET /analyses -> Returns all recenet analysis History -> If we want to see details of any anlysis -> View API invoked.
+            -- New DTO Needed to seperate the entities from Client view.
+    
+        ## Canceling this -> As we are not storing the whole AI response in our DB -> It will just overload the database as Analysis grows.
+            -> Storing redFalgs, safeclauses will have to store it not in Postgress -> It should be stored in some kind of cloudblob storage like S3, blob storage etc. 
+            -> We storing only the meta-data, and as a user, we should see the history table with columns: Title - Score - Risk - Date   [This should be fine]
+    
+    -- Analyses Status API 
+        -> API:  GET /analyses/stats    -> Fetches Analysis stats of the current loggedin User.
+        -> Response: 
+            {
+                "totalAnalyses": 143,
+                "safe": 52,
+                "moderate": 61,
+                "highRisk": 20,
+                "critical": 10,
+                "averageSafetyScore": 71
+            }
+        -> Scope:
+            -> Shows An Report card for the users with his Analyses Trend.
+        -> Approach:
+            1. Going to use Custom JPA Queries. ref: "AnalysisResultRepository.java"
+            2. Aggregated Function 
+            3. DTO Projection + Service Layer Orchestration.
+        -- New DTO created for Handling the Stats Response: AnalysisStatsResponse.java
+        -- AnalysisResultRepository changes:
+            1. Using Spring Data JPA Derived methods:
+                -> We can use Derived queries for fetching each type of count infromation from the database. eg: countByUsername(), countByUsernameAndSafetyScoreBetween() etc.
+                -> Advantage:
+                    1. simple to implement.
+                    2. Pure Spring Data JPA.
+            2. Spring JPQL query:
+                -> eg: SELECT COUNT(*), 
+                              SUM(...), 
+                              AVG(...)
+                -> Advantage:
+                    1. Single database round-trip.
+                    2. Much improved performance.
+        -- Our Approach: We are will go ahead with JPQL queries for optimized DB reads considering Performance Improvement.
+        -- Difference between JPQL vs SQL:
+            SQL queires database tables directly, whereas JPQL queries JPA Entities and their mapped fileds, making it database-independently.
+            eg:
+                JPQL queries will only work on fields defined in AnalysisResult DTO. NOTE: in enity file, we can define custome names to database columsn. eg: @Column(name = ?)
+            -- While writing JPQL, we have to consider the Entity fields only not the columnd name in SQL table.
+            -- JPQL itself doesn't talk to your database. When you run a JPQL query, Hibernate intercepts it and translates it into the native SQL dialect of whatever database is currently connected.
+               This translation is handled by a configuration property called the Database Dialect.
+            Advantage:
+                -> This works very well when you switch database. -> If we write native SQL then it might break but with JPQL using JPA entity fields -> no matter what database you connect it will take care i.e Database-independent.
+                -> This gives us Advantage to switch the entire underlying database, without changing a single line of Java code. [ Crazzy !!! ]
+        

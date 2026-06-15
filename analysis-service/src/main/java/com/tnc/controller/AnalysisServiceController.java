@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tnc.config.AnalysisServiceConstants;
+import com.tnc.dto.AnalysisStatsResponse;
 import com.tnc.dto.AnalyzeRequest;
 import com.tnc.dto.AnalyzeResponse;
 import com.tnc.dto.HistoryResponse;
@@ -83,6 +84,14 @@ public class AnalysisServiceController {
 
         return analysisService.getHistory(username, riskLevel, keyword, sortBy, direction, page, size);
     }
+
+    // API endpoint to returns User Stats.
+    @GetMapping("/stats")
+    public AnalysisStatsResponse getAnalysisStats(
+        @RequestHeader("X-Authenticated-User") String username
+    ) {
+        return analysisService.getAnalysisStats(username);
+    }
     
 }
 
@@ -143,6 +152,9 @@ public class AnalysisServiceController {
                 There is currently no check on the String values on sortBy and RiskLevel as they are String and Enums respectively.
             Solution:
                 We can create a white list of allowed sortBy Fields. If anything else, throw an exception.
+        
+        -> Added a new Route "/analyses/stats" -> This fetches user analysis Stats per user.
+            -> This API can be used in User Dashboard to show infromation on his past Analyses.
 
 
 */
