@@ -604,4 +604,11 @@ Date: 13th June 2026
             Advantage:
                 -> This works very well when you switch database. -> If we write native SQL then it might break but with JPQL using JPA entity fields -> no matter what database you connect it will take care i.e Database-independent.
                 -> This gives us Advantage to switch the entire underlying database, without changing a single line of Java code. [ Crazzy !!! ]
-        
+    
+    ## code Refactoring:
+        -- we are using min and max constant in Java at many places for the RiskLevel.
+        -- currently we are using hardcoded values through-out the code-base and have an Entity class where we have defined am Enum.
+        Goal:
+            -- Remove the hardcoded values of the ranges from AnalysisService and AnalysisSepecification file.
+            -- Instead use the getters to fetch the values of the range from the EUNM Class.
+        - This Ensures maninrainability and well structured code. --> In Future if the vals update, no magic numbers out of the blue. -> Change only at the enum class level.

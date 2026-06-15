@@ -111,10 +111,10 @@ public class AnalysisService {
         long totalAnalysesCount = analysisResultRepository.countByUsername(username);
 
         // fetches the now of records per user per Analysis State count.
-        long safeCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, 90, 100);
-        long moderateCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, 60, 89);
-        long highRiskCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, 30, 59);
-        long criticalCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, 0, 29);
+        long safeCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, RiskLevel.SAFE.getMinScore(), RiskLevel.SAFE.getMaxScore());
+        long moderateCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, RiskLevel.MODERATE.getMinScore(), RiskLevel.MODERATE.getMaxScore());
+        long highRiskCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, RiskLevel.HIGH_RISK.getMinScore(), RiskLevel.HIGH_RISK.getMaxScore());
+        long criticalCount = analysisResultRepository.countByUsernameAndSafetyScoreBetween(username, RiskLevel.CRITICAL.getMinScore(), RiskLevel.CRITICAL.getMaxScore());
 
         Double avgSafetyScore = analysisResultRepository.findAverageSafetyScoreByUsername(username);
         

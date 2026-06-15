@@ -29,40 +29,14 @@ public class AnalysisSpecification {
             return null;
         }
 
-        return (root, query, criteriaBuilder) -> {
-            // since, we know the range of safety score to decide the it's riskLevel.
-            // for filtering data based on riskLevel we are using different cases.
-            return switch(riskLevel) {
-
-                case CRITICAL ->
-                    criteriaBuilder.between(
-                        root.get("safetyScore"),
-                        0,
-                        29
-                    );
-
-                case HIGH_RISK ->
-                    criteriaBuilder.between(
-                        root.get("safetyScore"),
-                        30,
-                        59
-                    );
-                
-                    case MODERATE ->
-                        criteriaBuilder.between(
-                            root.get("safetyScore"),
-                            60,
-                            89
-                        );
-
-                    case SAFE ->
-                        criteriaBuilder.between(
-                            root.get("safetyScore"),
-                            90,
-                            100
-                        );
-            };
-        };
+        // since, we know the range of safety score to decide the it's riskLevel.
+        // for filtering data based on riskLevel we are using different cases.
+        // Enhancement: We have updated RiskEnum to store it's guidedrange.
+        return (root, query, criteriaBuilder) -> criteriaBuilder.between(
+            root.get("safetyScore"), 
+            riskLevel.getMinScore(),
+            riskLevel.getMaxScore() 
+        );
     }
     
     // @method: This specify the filter based on the given keyword. -> searches in summary.
