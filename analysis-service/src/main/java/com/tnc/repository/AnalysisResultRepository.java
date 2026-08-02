@@ -1,5 +1,7 @@
 package com.tnc.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -37,7 +39,14 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
         """)
     Double findAverageSafetyScoreByUsername(
         @Param("username") String username
-    );    
+    );
+    
+    // @method4: fetching all records by id and username -> This is a simple derived query.
+    // using Option<> here, as the selection might return with 0 rows.
+    Optional<AnalysisResult> findByIdAndUsername(
+        Long id,
+        String username
+    );
 
 }
 

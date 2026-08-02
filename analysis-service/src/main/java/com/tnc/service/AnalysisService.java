@@ -17,6 +17,7 @@ import com.tnc.entity.AnalysisResult;
 import com.tnc.entity.AnalysisSource;
 import com.tnc.entity.AnalysisStatus;
 import com.tnc.entity.RiskLevel;
+import com.tnc.exception.ResourceNotFoundException;
 import com.tnc.repository.AnalysisResultRepository;
 import com.tnc.specification.AnalysisSpecification;
 
@@ -134,6 +135,22 @@ public class AnalysisService {
                                     .build();
 
     }
+
+    // @method -> this method is responsible for delete a particular entry of Analysis with Id and username as mandatory params.
+    @SuppressWarnings("null")
+    public void deleteAnalysis(Long id, String username) {
+
+        AnalysisResult analysisRes = analysisResultRepository
+                                .findByIdAndUsername(id, username)
+                                .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                        "Analysis not found"
+                                    )
+                                );
+        
+        // If a Analysis is found on the username with the id, then delete it.
+        analysisResultRepository.delete(analysisRes);
+    }
 }
 
 
@@ -195,5 +212,8 @@ public class AnalysisService {
 
         -- Added a new method to handle the business logic for fetching Analysis Stats meta-data per user.
             -> This integrates to AnalysisResultRepository -> which has dervied methods and JPQL queries.
+
+        -- Added a new method to handle deletion of an Analysis entry from the database.
+            -> This integrates to the derived methods from the AnalysisResultRepository.
         
 */

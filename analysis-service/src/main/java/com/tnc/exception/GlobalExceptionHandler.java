@@ -52,6 +52,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
     }
 
+    // Catches your manual ResourceNotFoundException from service Layer -> Formats the error structure.
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
+
+        // 🔴 Logs a concise error message on the console for known execution failures
+        log.error("RuntimeTime Exceptions failure encountered during processing: {}", ex.getMessage());
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "Resource Not Found");
+        body.put("message", ex.getMessage());
+        body.put("status", HttpStatus.NOT_FOUND.value());
+
+        // Returning HTTP 502 Bad Gateway because an upstream provider failed expectations
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
     // The Ultimate Fallback Global Safety Net for any unhandled exceptions
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleAllUnCaughtExceptions(Exception ex) {

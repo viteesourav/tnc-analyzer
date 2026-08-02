@@ -593,6 +593,7 @@ Date: 13th June 2026
                 -> Advantage:
                     1. Single database round-trip.
                     2. Much improved performance.
+        -- JPQL: Java persisitence Query Language.
         -- Our Approach: We are will go ahead with JPQL queries for optimized DB reads considering Performance Improvement.
         -- Difference between JPQL vs SQL:
             SQL queires database tables directly, whereas JPQL queries JPA Entities and their mapped fileds, making it database-independently.
@@ -612,3 +613,61 @@ Date: 13th June 2026
             -- Remove the hardcoded values of the ranges from AnalysisService and AnalysisSepecification file.
             -- Instead use the getters to fetch the values of the range from the EUNM Class.
         - This Ensures maninrainability and well structured code. --> In Future if the vals update, no magic numbers out of the blue. -> Change only at the enum class level.
+
+
+###########################################################################################
+
+Work Milestone Planning and Feature Development Requeirements: 
+
+    Planning:
+        1. Work on the Delete Analysis API.
+        2. Work on fetching Recent Analyses.
+        3. TOP Risk Distribution.
+
+    NOTE: Update the Postman collection from local to Repo after API Changes.
+
+    ## Infra Updates:
+        1. Introduce Redis Cache.
+        2. Kafka for ASync AI calls.
+        3. Update Auth Layer with Intergration with Keycloak.
+
+###########################################################################################
+
+
+TODO: 21st July
+
+    -- Analysis Delete API
+        -> API:  DELETE /analyses/{id}  -> User can delete their analysis, User based Ownership i.e they should not be allowed to delete any other analysis if they don't own it.
+        -> Scope of Work:
+            1. First we need to update the AnalysisResultRepository to fetch rows based on id & username. -> This is best way, it takes care of both i.e if it exists and if it dosn't exits.
+            2. Then we add a new global custom excpetion Handler for: ResourceNotFoundException.
+                -> This makes sure we are not globally catching the error if the row doesn't exist, instead we are handling it independently !
+                -> This makes sure the message for "Not Found" is consisitent.
+                -> Reusabliy for other APIs.
+            3. The above exception is caught by the globalExceptionHandler for proper formatting.
+        -> Expected Response if it's didn't find the row will be in the format:
+            {
+                "error": "Resource Not Found",
+                "message": "Analysis not found",
+                "status": 404
+            }
+        -> How Should we handle Deleting of an Object ? Should you return the object deleted or a success message or an HTTP 204 No content ?
+            - In service layer -> We fetch the record [ownership is guarnteed by the query i.e findbyIdAndUsername] -> If record exists, Delete it -> If not -> Just return Resource not found exception.
+            - In case a non-owner tries to fetch the data, In that case too -> No records will be found and the No Resource Found Exception will be received.
+
+TODO: 2nd Aug 
+
+        -> Service Layer Changes:
+            - So the flow is simple: ReceivedID + username -> Ask AnalyticsResult Repo ? If it exists --> If exist, then Delete it & If Not, then throw the "NOT FOUND" exception.
+            - Added advantage -> No explict ownership check, we are fetching data based on username and password.
+        
+        -> After Deleting the Entry -> What should we show user ? 
+            - we will not return anything. 204 - No content status should be enough.
+            - But we can return some Success JSON ?
+                -> As per REST convention, if a resource is deleted i.e now it doesn't exist -> So 204 No content status looks good.
+        
+        -> Another query, Why we are returning 404 error on Resource not found or if we don't have access to it. Ideally should be 403 state ?
+            - Reason is simple: We don't want to let the person know, if the resource was deleted or he doesn't own it. 
+            - For Security reason, the person has nothing to do with knowing the state the resource is in database. --> So No chance to exploit it either.
+
+    NOTE: The response of GET /analsis  -> This fetchs all analysis result done by the current user. we have Analysis Id here, we can use it to delete a particular analysis Id.
