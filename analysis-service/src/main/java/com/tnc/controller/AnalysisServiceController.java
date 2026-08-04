@@ -19,6 +19,7 @@ import com.tnc.config.AnalysisServiceConstants;
 import com.tnc.dto.AnalysisStatsResponse;
 import com.tnc.dto.AnalyzeRequest;
 import com.tnc.dto.AnalyzeResponse;
+import com.tnc.dto.ApiResponse;
 import com.tnc.dto.HistoryResponse;
 import com.tnc.entity.RiskLevel;
 import com.tnc.service.AnalysisService;
@@ -48,15 +49,21 @@ public class AnalysisServiceController {
     // NOTE: @Valid -> Triggers field level validaitons mentioned in the DTO -> here we have @NotBlank on text field.
     // Extract the username coming in the request header --> Pass it to the service layer.
     @PostMapping
-    public AnalyzeResponse analyze(@Valid @RequestBody AnalyzeRequest request, @RequestHeader("X-Authenticated-User") String username) throws Exception {
+    public ResponseEntity<ApiResponse<AnalyzeResponse>> analyze(@Valid @RequestBody AnalyzeRequest request, @RequestHeader("X-Authenticated-User") String username) throws Exception {
 
         // call the service layer...
-        return analysisService.analyzeText(request.getText(), username);
+        AnalyzeResponse response = analysisService.analyzeText(request.getText(), username);
+
+        return ResponseEntity.ok(
+            ApiResponse.sucess(
+                AnalysisServiceConstants.ANALYSIS_COMPLETED, 
+                response)
+        );
     }
 
     // This API endpoint manages user history.
     @GetMapping
-    public Page<HistoryResponse> getHistory(
+    public ResponseEntity<ApiResponse<Page<HistoryResponse>>> getHistory(
         @RequestHeader("X-Authenticated-User") String username,
         @RequestParam(required = false) String riskLevel,
         @RequestParam(required = false) String keyword,
@@ -85,15 +92,28 @@ public class AnalysisServiceController {
             );
         }
 
-        return analysisService.getHistory(username, riskLevel, keyword, sortBy, direction, page, size);
+        Page<HistoryResponse> resp =  analysisService.getHistory(username, riskLevel, keyword, sortBy, direction, page, size);
+
+        return ResponseEntity.ok(
+            ApiResponse.sucess(
+                AnalysisServiceConstants.ANALYSIS_HISTORY_FETCHED, 
+                resp)
+        );
     }
 
     // API endpoint to returns User Stats.
     @GetMapping("/stats")
-    public AnalysisStatsResponse getAnalysisStats(
+    public ResponseEntity<ApiResponse<AnalysisStatsResponse>> getAnalysisStats(
         @RequestHeader("X-Authenticated-User") String username
     ) {
-        return analysisService.getAnalysisStats(username);
+        AnalysisStatsResponse resp = analysisService.getAnalysisStats(username);
+
+        return ResponseEntity.ok(
+            ApiResponse.sucess(
+                AnalysisServiceConstants.ANALYSIS_STATS_FETCHED,
+                resp
+            )
+        );
     }
 
     // API endpoint to delete Analysis based on Id.
@@ -173,6 +193,20 @@ public class AnalysisServiceController {
 
         -> Added a new Route DELETE "/{id}" -> This will delete a particular row from the Analysis table.
             -> Note: We are returning empty response. Only the STATUS 204 i.e NO Content verifies that the content is succssfully deleted.
+
+    Enahancement:
+        -> Updating the Response Structure to a consitent one using DTO with static method and Java Generics.
+        -> Reason for using ResponseEntity.ok() ?
+            -> It let us control the 
+                1. HTTPStatus
+                2. headers
+                3. Cookies (if needed )
+        -> We are handling this for all the enpoints defined:
+            POST /analyses
+            GET  /analyses 
+            GET  /analyses/stats
+        -> We are also checking on how to handle the DELETE API calls.
+
 
 
 */

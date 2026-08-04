@@ -43,7 +43,7 @@
           "bearer": [
             {
               "key": "token",
-              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzgxMTk0MzEwLCJleHAiOjE3ODExOTc5MTB9.906D8LUCMHvxpcf2pWqyXalEqEME67y-DRe8vfzG05k",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzg1ODczNTg3LCJleHAiOjE3ODU4NzcxODd9.0ObO190-JXgW5t2mdk1rc5q2PTMsSPi8AJdkv73xevg",
               "type": "string"
             }
           ]
@@ -74,14 +74,14 @@
       "response": []
     },
     {
-      "name": "analyses",
+      "name": "analyses Paginated",
       "request": {
         "auth": {
           "type": "bearer",
           "bearer": [
             {
               "key": "token",
-              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzgxMjgwMzY4LCJleHAiOjE3ODEyODM5Njh9.NjJhMxPJLYSCpVstmJIlmoWdWF_p7heJV_8uGlfSq-0",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzg1ODczNTg3LCJleHAiOjE3ODU4NzcxODd9.0ObO190-JXgW5t2mdk1rc5q2PTMsSPi8AJdkv73xevg",
               "type": "string"
             }
           ]
@@ -89,7 +89,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8080/analyses?page=0&size=10&keyword=consent&sortBy=createdAt&direction=desc",
+          "raw": "http://localhost:8080/analyses?page=0&size=10&riskLevel=HIGH_RISK&sortBy=createdAt&direction=desc",
           "protocol": "http",
           "host": [
             "localhost"
@@ -109,24 +109,94 @@
             },
             {
               "key": "riskLevel",
-              "value": "HIGH_RISK",
-              "type": "text",
-              "disabled": true
+              "value": "HIGH_RISK"
             },
             {
               "key": "keyword",
               "value": "consent",
-              "type": "text"
+              "disabled": true
             },
             {
               "key": "sortBy",
-              "value": "createdAt",
-              "type": "text"
+              "value": "createdAt"
             },
             {
               "key": "direction",
-              "value": "desc",
-              "type": "text"
+              "value": "desc"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "analyses Stats",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzg1ODczNTg3LCJleHAiOjE3ODU4NzcxODd9.0ObO190-JXgW5t2mdk1rc5q2PTMsSPi8AJdkv73xevg",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/analyses/stats",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "analyses",
+            "stats"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Analysis",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzg1Njk3MzQyLCJleHAiOjE3ODU3MDA5NDJ9.JiZEwhG0vOyvEUNdHCnadLAPsNnN3GDhzw3e_VwkQec",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/analyses/:id",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "analyses",
+            ":id"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": null,
+              "type": "text",
+              "disabled": true
+            }
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "4"
             }
           ]
         }

@@ -14,6 +14,9 @@ import java.util.Set;
                     AnalysisServiceConstants constant = new AnalysisServiceConstants();
             -> Crating a object instance of a class where inside all variable are static -> is a waste of memory.
             -> by declaring private constructor ---> We explictly block use of "new" keyword.
+    -- eg in Java:
+        - java.util.Collections
+        - java.util.Objects
 */
 public final class AnalysisServiceConstants {
     
@@ -29,4 +32,10 @@ public final class AnalysisServiceConstants {
         "safetyScore",
         "title"
     );
+
+    // Constants for API Response messages...
+    public static final String ANALYSIS_COMPLETED = "Analysis completed successfully.";
+    public static final String ANALYSIS_HISTORY_FETCHED = "Analysis history retrived successfully.";
+    public static final String ANALYSIS_STATS_FETCHED = "Analysis statistics retrived successfully.";
+    public static final String ANALYSIS_DELETED = "Analysis deleted successfully.";
 }

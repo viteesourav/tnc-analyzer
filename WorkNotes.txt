@@ -620,9 +620,9 @@ Date: 13th June 2026
 Work Milestone Planning and Feature Development Requeirements: 
 
     Planning:
-        1. Work on the Delete Analysis API.
-        2. Work on fetching Recent Analyses.
-        3. TOP Risk Distribution.
+        1. Work on the Delete Analysis API.   ==> DONE.
+        2. Work on fetching Recent Analyses.  ==> SCRAPPED. [Reason: Already taken care by GET /analyses paginated call ]
+        3. TOP Risk Distribution.             ==> Not needed.
 
     NOTE: Update the Postman collection from local to Repo after API Changes.
 
@@ -671,3 +671,65 @@ TODO: 2nd Aug
             - For Security reason, the person has nothing to do with knowing the state the resource is in database. --> So No chance to exploit it either.
 
     NOTE: The response of GET /analsis  -> This fetchs all analysis result done by the current user. we have Analysis Id here, we can use it to delete a particular analysis Id.
+
+TODO: 4th Aug
+
+    Standardize API Response Structure as per Production Level Product.
+
+        -> Problem:
+            - Currently we have around 4 different APIs i.e POST /analyses, GET /analyses  the GET /analyses/stats then the ERROR reponses.
+            - All of the above mentioned APIs are returning different data in their own respective format.
+            - Nothing wrong, but there is no consistency in the data structure that is going to frontend. ==> Production Code has it.
+
+        -> Solution:
+            - Will build a wrapper to wrap the API responses and provide them a common - similar structure.
+            - eg:
+                {
+                    "success": true,
+                    "message": "Analysis completed successfully",
+                    "data": {
+                        ...
+                    }
+                }
+            - Advantage: 
+                -> From frontend, we can write consistent API calls code like 
+                    cont resp = await api.get(...);
+                    if resp.success then take resp.data.
+
+        NOTE: No changes to the Delete /analyses --> and the response status of 204. That is as per REST standards !
+        
+        -> Work Needed:
+            -- We will create a generic Wrapper DTO with "Java Generic" i.e ApiResponse<T> -> This can be used like for ApiResponse<AnalyzeResponse> or ApiResponse<AnalysisStatsResponse> etc.
+            -- Will include timestamp as well for better logging and debugging capabilities.
+            -- Now 2 ways:
+                1. You build the ApiResponse body and structure at every controller level. --> Problem is too much repeated work !
+                2. We make the DTO smarter by adding static builder method.  --> Far reliable and maintainable.
+            
+            NOTE:
+                1. Java Generics
+                    -- Insted of modifying the template of all responses at different controller code. We create a common Template.
+                    -- It takes Generic arg i.e <T> which can invoked when we call/use the DTO.
+                    -- Increases maintainability of the code structure.
+                    -- eg: in Java we have Generics Like ResponseEntity<String> or ResponseEntity<User> or ResponseEntity<List<Employees>>
+
+                2. Java Static Factory Method usecase:
+                    -- Here we see the usecase of static factory Method in Java.
+                    -- Instead of writing the same functionality over and over, we handle it at the DTO level and all others can use it.
+                    -- Eg of Java using static factory method: List.of(...), Map.of(...), Optional.of(...)
+                
+            -- Handling Failure Error Structure:
+                -- As per our code, the failure error structre is handled by a common globalExceptionHandler.
+                -- That already Specify the structure of the Error response in case it encounters any.
+                -- To maintain consistency between Sucess and failure structre, We will wrap the Exceptions handled at "GlobalExceptionHandler.java" too.
+    
+Date: 5th Aug
+
+    Changes Done: 
+        -- Chages on the Sucess API refactoring ==> Done.
+        -- Need to test the chnages for success. ==> Done.
+        -- Need to push the changes once verified. => Done.
+    
+    TODO:
+        -- Need to add static method for failure.
+        -- Need to update the Global exception handler code.
+        -- Also update the Postman collection.
