@@ -777,6 +777,51 @@ Date: 15th Aug
                                 |->  Redis HIT   => Return the cached AnalyzeResponse.
                                 |
                                 |-> Redis Miss  --> Gemini Service --> Analyzeresponse --> Store in Redis --> Return Result.
+
+
+        - Architure digram: 
+            Implemnetaion of classic: Cache-Aside Pattern
+
+                POST /analyses
+                    │
+                    ▼
+                AnalysisService
+                    │
+                    ▼
+                Generate cache key
+                    │
+                    ▼
+                Check Redis
+                ┌───┴────┐
+                │        │
+               HIT      MISS
+                │        │
+                ▼        ▼
+            Return    GeminiService
+            cached        │
+            response      ▼
+                │      AnalyzeResponse
+                │           │
+                │           ▼
+                │         Redis
+                │           │
+                └─────┬─────┘
+                        ▼
+                Save AnalysisResult
+                        │
+                        ▼
+                    Return
+
+        NOTE:
+            - For Redis HIT, we are are still storing the result into AnalysisResult Table in postgres DB.
+            - Reason:
+                - the Caching is done, to reduce the AI API computation. Not reducing user's history.
+                - so even we hit the cache, we still add a row under the user's history for this API hit call.
+        
+        -- We are implementing Cache-Aside Architecture ! What it means ?
+            -> the application controls the cache rather than Redis automatically intercepting database calls. 
+            -> thus the name, Cache-Aside.
+
     
     -- Redis Installation & Config:
         1. Added dependency in build.gradle for analyze-service -> this tells spring how to connect to Redis.
@@ -810,14 +855,73 @@ Date: 15th Aug
 
     -- Redis Cache integration with Service Layer:
         1. CacheKeyGenerator
-            -- Responsible for:
-                Terms & Condn inpute ---> SHA-256 ---> Stable Cache key
+            -> Responsible for:
+                Terms & Condn inpute ---> SHA-256 ---> Stable Cache key.
+            -> The format will look something like: 
+                Original Text -> SHA-256 -> a8f4c2... -> Adding a prefix for context --> analysis:gemini:a8f4c3...
+            -> But why SHA-256 algo ?
+                1. Deteministic Property. -> For same input, always provide the same hash.
+                2. Fixed Length -> if doc is 500 or 5000 ! who cares ? SHA-256 has always 256 bits = 32 bytes -> represented by 64 hexadecimal characters.
+                3. Low Collision rate -> no 2 doc will provide the same hash in any case.
+
+            -> Possible Problems:
+                1. for inputs: "hello world" and "hello world "  -> for a space at the end it will produce new hash.
+                2. for inputs: "hello world" and "Hello world"   -> again case sensitive, produce 2 different hashs.
+
+                Thus, Since the words are same, but tailing spaces or a mis-matched case can produce totally new hash -> caching won't work !
+
+            -> Our Use case:
+                -- since we are handling legal docs, these characters or casing is imp and shouldn't be changed. Thus we will keep the above behaviour as standards for now !
+
+            -> Caching happens irrespective of user:
+                -- the cached key: analysis:gemini:a8f4c3...  -> No mentioned of the user.
+                -- caching is done on the doc -> So if 2 user uploads the same doc, then result should be same irrespective of who uplaods it.
+
+                Thus, Featuer of this implementations -> we cache as per docs irrespective of who uploading it. 
+
 
         2. Redis Cache Lookup.
             -- Redis HIT case --> return directly from cache store --> Analyzeresponse.
+            -- Under Analysis Service:
+                -> we add the dependencies for the Redis Template and CacheKeyGenerator as Constructor injection.
+                -> then we generate the unique SHA-256 hashed cachedKey for the Redis with the input text.
+                -> Add a check for checking the key already present in the Redis Cache.
+            -- Flow:
+                        Redis
+                        ↓
+                        result found
+                        ↓
+                        skip Gemini
+                        ↓
+                        PostgreSQL history
 
-        3. Cache miss
             -- Cache Miss case --> GeminiService ---> AnalyzeResponse --> Redis.
+            -- Flow: 
+                        Redis
+                        ↓
+                        nothing found
+                        ↓
+                        Gemini
+                        ↓
+                        result
+                        ↓
+                        Redis
+                        ↓
+                        PostgreSQL history
 
-        4. TTL
+    ### NOTE: 
+        Problem:
+            - There is problem we need to Address: While fetching the data from Redis deserialize -> since RedisTempalte take <String, Object>
+            - the GenericJackson2JsonRedisSerializer, coverts the response to generic LinkedHashMap. => Which we cannot directly cast to AnalyzeResponse structure.
+        Solution:
+            - use Object Mapper explictly convert the LinkedHashMap into AnalyzeResponse Strucute.
+
+
+        3. TTL
             -- Will decide how long the data persist in the memory. 
+            -- Problem that we are solving: 
+                -> we are trying to solve is when the same req with exact same text is sent twice or thrice. 
+                -> we want to limit that. I believe a TTL of even 5 mins also would work instead of 7 days or 24 hours. 
+                -> you see we are not storing data, we just avoiding any duplicate calls that might hit AI and use unnecessary tokens.
+            -- changes:
+                In Analysis Service, where we are setting data to Redis using RedisTemplate -> specify the expire time as well.  **** 5 mins in our case *****

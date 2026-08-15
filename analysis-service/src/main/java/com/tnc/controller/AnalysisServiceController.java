@@ -1,7 +1,6 @@
 package com.tnc.controller;
 
 import java.util.Arrays;
-import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;

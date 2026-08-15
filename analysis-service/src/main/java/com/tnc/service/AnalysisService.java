@@ -1,14 +1,17 @@
 package com.tnc.service;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tnc.config.AnalysisServiceConstants;
 import com.tnc.dto.AnalysisStatsResponse;
 import com.tnc.dto.AnalyzeResponse;
@@ -20,6 +23,7 @@ import com.tnc.entity.RiskLevel;
 import com.tnc.exception.ResourceNotFoundException;
 import com.tnc.repository.AnalysisResultRepository;
 import com.tnc.specification.AnalysisSpecification;
+import com.tnc.util.CacheKeyGenerator;
 
 @Service
 public class AnalysisService {
@@ -27,12 +31,27 @@ public class AnalysisService {
     private final GeminiService geminiService;
     private final AnalysisResultRepository analysisResultRepository;    // This handles saving analysis data for Analysis history.
 
-    public AnalysisService(GeminiService geminiService, AnalysisResultRepository analysisResultRepository) {
+    // Redis Integration...
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final CacheKeyGenerator cacheKeyGenerator;
+    private final ObjectMapper objectMapper;
+
+    public AnalysisService(
+            GeminiService geminiService, 
+            AnalysisResultRepository analysisResultRepository, 
+            RedisTemplate<String, Object> redisTemplate, 
+            CacheKeyGenerator cacheKeyGenerator,
+            ObjectMapper objectMapper
+    ) {
         this.geminiService = geminiService;
         this.analysisResultRepository = analysisResultRepository;
+        this.redisTemplate = redisTemplate;
+        this.cacheKeyGenerator = cacheKeyGenerator;
+        this.objectMapper = objectMapper;
     }
 
     // This method => Calls GeminiService, take the response and returns to Controller.
+    // Additional Fun: It also checks cache for optimizing AI API calls.
     public AnalyzeResponse analyzeText(String text, String username) throws Exception {
 
         // text max length validation...
@@ -42,7 +61,37 @@ public class AnalysisService {
             );
         }
 
-        AnalyzeResponse response = geminiService.analyzeTerms(text);
+        // fetch the input text's hashed val..
+        String cacheKey = cacheKeyGenerator.generateKey(text);
+
+        // fetch the response from the cache.. -> Fetched the value from redis as Object.
+        Object cachedValue = redisTemplate.opsForValue().get(cacheKey);
+
+        AnalyzeResponse response = null;
+
+        // use ObjectMapper to convert the cacheVal object to AnalyzeResponse structure.
+        if (cachedValue != null) {
+            response = 
+                objectMapper.convertValue(
+                    cachedValue,
+                    AnalyzeResponse.class
+                );
+        }
+        
+        // check if the Redis cache already have the response in cache...
+        if (response == null) {
+
+            // Cache Miss Case..
+            response = geminiService.analyzeTerms(text);
+
+            // Cache Gemini Result..
+            redisTemplate.opsForValue().set(
+                cacheKey, 
+                response,
+                5,
+                TimeUnit.MINUTES
+            );
+        }
 
         // Below we are building data for Analysis history and will save this in database for User Data Analytics.
         AnalysisResult result = AnalysisResult.builder()
@@ -215,5 +264,13 @@ public class AnalysisService {
 
         -- Added a new method to handle deletion of an Analysis entry from the database.
             -> This integrates to the derived methods from the AnalysisResultRepository.
+
+    Enahncements:
+        -- We are adding caching support to Gemini API AI call.
+            -> we are injecting CacheKeyGenerator [generates unique cache key for input] and RedisTemplate [handles serialization and deserialization from Redis]
+            -> Implemneting Cache-Aside Architectire: 
+                - Here, we are storing the result always in postgress but before we just check if the current result exists in cache or not ?
+                - If present, send it to the response.
+                - If not, call the gemini service, get the response then store it in redis  -> then do the same for preparing Analysis Response structure.
         
 */
