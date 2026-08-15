@@ -16,6 +16,11 @@ spring:
       hibernate.jdbc.time_zone: UTC
 
     show-sql: true # This prints sql queries in log.
+  
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
 # Gemini API Secert Key
 gemini:

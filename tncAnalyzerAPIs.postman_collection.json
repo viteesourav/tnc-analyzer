@@ -8,6 +8,37 @@
   "item": [
     {
       "name": "login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// 1. Verify response status is HTTP 200\r",
+              "pm.test(\"Login successful - Status code 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Extract raw response text and trim white spaces\r",
+              "const rawToken = pm.response.text().trim();\r",
+              "\r",
+              "// 3. Verify token exists and matches standard JWT format (starts with header prefix 'eyJ')\r",
+              "pm.test(\"Valid JWT token received\", function () {\r",
+              "    pm.expect(rawToken).to.be.a('string').that.is.not.empty;\r",
+              "    pm.expect(rawToken.startsWith('eyJ')).to.be.true;\r",
+              "});\r",
+              "\r",
+              "// 4. Save to Postman Global Variables\r",
+              "pm.globals.set(\"jwt_token\", rawToken);\r",
+              "\r",
+              "// 5. Print to Postman Console to manually inspect\r",
+              "console.log(\"Extracted Token:\", pm.globals.get(\"jwt_token\"));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [],
@@ -43,7 +74,7 @@
           "bearer": [
             {
               "key": "token",
-              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzg1ODczNTg3LCJleHAiOjE3ODU4NzcxODd9.0ObO190-JXgW5t2mdk1rc5q2PTMsSPi8AJdkv73xevg",
+              "value": "{{jwt_token}}",
               "type": "string"
             }
           ]
@@ -81,7 +112,7 @@
           "bearer": [
             {
               "key": "token",
-              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzg1ODczNTg3LCJleHAiOjE3ODU4NzcxODd9.0ObO190-JXgW5t2mdk1rc5q2PTMsSPi8AJdkv73xevg",
+              "value": "{{jwt_token}}",
               "type": "string"
             }
           ]
@@ -89,7 +120,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8080/analyses?page=0&size=10&riskLevel=HIGH_RISK&sortBy=createdAt&direction=desc",
+          "raw": "http://localhost:8080/analyses?page=0&size=10&sortBy=createdAt&direction=desc",
           "protocol": "http",
           "host": [
             "localhost"
@@ -109,7 +140,8 @@
             },
             {
               "key": "riskLevel",
-              "value": "HIGH_RISK"
+              "value": "HIGH_RISK",
+              "disabled": true
             },
             {
               "key": "keyword",
@@ -137,7 +169,7 @@
           "bearer": [
             {
               "key": "token",
-              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzg1ODczNTg3LCJleHAiOjE3ODU4NzcxODd9.0ObO190-JXgW5t2mdk1rc5q2PTMsSPi8AJdkv73xevg",
+              "value": "{{jwt_token}}",
               "type": "string"
             }
           ]
@@ -167,7 +199,7 @@
           "bearer": [
             {
               "key": "token",
-              "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjYXB0YWluIiwiaWF0IjoxNzg1Njk3MzQyLCJleHAiOjE3ODU3MDA5NDJ9.JiZEwhG0vOyvEUNdHCnadLAPsNnN3GDhzw3e_VwkQec",
+              "value": "{{jwt_token}}",
               "type": "string"
             }
           ]
@@ -196,7 +228,7 @@
           "variable": [
             {
               "key": "id",
-              "value": "4"
+              "value": "5"
             }
           ]
         }

@@ -729,7 +729,95 @@ Date: 5th Aug
         -- Need to test the chnages for success. ==> Done.
         -- Need to push the changes once verified. => Done.
     
-    TODO:
-        -- Need to add static method for failure.
-        -- Need to update the Global exception handler code.
-        -- Also update the Postman collection.
+
+Date: 15th Aug    
+    NOTE:
+        - We will be not changing the Exception based structure. I think the current structure is fine. 
+            1. Expected Structure:
+                -- Add a new staic method under APiresponse.java -> it handles failures/Exception with the below structure.
+                -- eg:  {
+                            "success": false,
+                            "message": "Validation failed.",
+                            "timestamp": "...",
+                            "data": {
+                                "text": "Text must not be blank"
+                            }
+                        }
+            2. Current Structure for exceptions:
+                {
+                    "error": "Resource Not Found",
+                    "message": "Analysis not found",
+                    "status": 404
+                }
+
+        - Postman Enhancement Update:
+            - we have added post-response script in /login API -> picks the token response and saves it to a global variable: {{jwt_token}}
+            - the global variable is then passed as Bearer header to other API for autentication.
+
+
+############ Phase 3 - Distributed System Infra Enhancement ##################
+
+1. Introducing Redis Caching for Gemini API.
+    Problem:
+        - Let's say you are hitting the Gemini API to fetch analysis response for a terms and condition text.
+        - And then you hit it again.
+        - Problem here:
+            - the call invokes the exactly same context for analysis and hits the AI API token twice, wastage of token. 
+    Solution:
+        - we will introduce a cache layer -> which caches the response of the first success call.
+        - subsequent calls will be hitting the cache first to checkm if this specific "Terms and condition" text is sent earlier ? If yes, return from cache.
+    
+    -- Redis key strategy:
+        - We cannot be storing the whole terms and condition as key. We will use hashing using SHA-256 => convert the input text into a predictable fix length key.
+    
+    -- Architecture:
+        - we are not gonna add Redis concept inside Gemini-Service. Gemini-Service Role is to talk to AI. That's it. 
+        - Caching here is an Application level concern => Must be handled seperatly.
+        - Controller  --> Analysis Service 
+                                |->  Redis HIT   => Return the cached AnalyzeResponse.
+                                |
+                                |-> Redis Miss  --> Gemini Service --> Analyzeresponse --> Store in Redis --> Return Result.
+    
+    -- Redis Installation & Config:
+        1. Added dependency in build.gradle for analyze-service -> this tells spring how to connect to Redis.
+            -> Adding the spring dependencies to work with redis: org.springframework.boot:spring-boot-starter-data-redis
+            ->  This dependency pulls in complete Spring Data Redis stack and auto-configure everything needed to connect, query and cache date inside a Redis instance.
+        2. First updated the application.yml file of analyze-service -> added the location to tell spring where is redis.
+        3. Installing Redis using docker -> updated our docker.compose file -> added redis block, and used "docker compose up -d"
+            -> this downloads Redis as docker image and runs in locally for us to store cache.
+            -> No Need to add vol, as we are not concern about data persisitence, it just stores cache.
+    
+    -- Java Object representation Inside Redis:
+        -> we want:
+            AnalyzeResponse --> Serialize --> Redis --> Deserialize --> Analyzeresponse.
+        -> We should use JSON serialization instead of Java's native Serialization. Reasons:
+            1. Redis values remain human readable.
+            2. Less coupled to Java's searialized class format.
+            3. Easier debugging using redis-cli.
+            4. Fits naturally to the JSON I/O response structure.
+        -> we create a new config/RedisConfig.java
+            -> it's task is to serialize and deserialize the keys & values to store in the Redis cache.
+            -> features:
+                1. it uses generic template with RedisTempalte<String, Object> --> What to store would be govern by service layer. can be extended beyond just storing AnalyzeResponse only.
+                2. Acts as a Java interface to Redis:
+                    Analysis Service --> Redis Template
+                                            |-->  Key Serializer --> String.
+                                            |
+                                            |-->  Value Serializer --> Json --> Redis.
+                3. Stores the values in JSon format. 
+                    -> Handled by "GenericJackson2JsonRedisSerializer" dependency from redis.
+                    -> Also we have specifically added sethashKey() and sethashValue() that prevent spring from adding the default Java's binary serialization. 
+
+    -- Redis Cache integration with Service Layer:
+        1. CacheKeyGenerator
+            -- Responsible for:
+                Terms & Condn inpute ---> SHA-256 ---> Stable Cache key
+
+        2. Redis Cache Lookup.
+            -- Redis HIT case --> return directly from cache store --> Analyzeresponse.
+
+        3. Cache miss
+            -- Cache Miss case --> GeminiService ---> AnalyzeResponse --> Redis.
+
+        4. TTL
+            -- Will decide how long the data persist in the memory. 

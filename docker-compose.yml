@@ -13,11 +13,11 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data     # this persist the database, even if the container goes down !
 
-  # redis:
-  #   image: redis:7
-  #   container_name: tnc-redis
-  #   ports:
-  #     - "6379:6379"
+  redis:
+    image: redis:7
+    container_name: tnc-redis
+    ports:
+      - "6379:6379"
 
   # zookeeper:
   #   image: confluentinc/cp-zookeeper:7.5.0
