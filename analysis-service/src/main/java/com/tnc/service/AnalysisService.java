@@ -20,10 +20,12 @@ import com.tnc.entity.AnalysisResult;
 import com.tnc.entity.AnalysisSource;
 import com.tnc.entity.AnalysisStatus;
 import com.tnc.entity.RiskLevel;
+import com.tnc.exception.GeminiApiException;
 import com.tnc.exception.ResourceNotFoundException;
 import com.tnc.repository.AnalysisResultRepository;
 import com.tnc.specification.AnalysisSpecification;
 import com.tnc.util.CacheKeyGenerator;
+import com.tnc.util.RedisAnalysisLock;
 
 @Service
 public class AnalysisService {
@@ -36,22 +38,27 @@ public class AnalysisService {
     private final CacheKeyGenerator cacheKeyGenerator;
     private final ObjectMapper objectMapper;
 
+    // For Redis Distributed Lock for concurrent same requests.
+    private final RedisAnalysisLock redisAnalysisLock;
+
     public AnalysisService(
             GeminiService geminiService, 
             AnalysisResultRepository analysisResultRepository, 
             RedisTemplate<String, Object> redisTemplate, 
             CacheKeyGenerator cacheKeyGenerator,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            RedisAnalysisLock redisAnalysisLock
     ) {
         this.geminiService = geminiService;
         this.analysisResultRepository = analysisResultRepository;
         this.redisTemplate = redisTemplate;
         this.cacheKeyGenerator = cacheKeyGenerator;
         this.objectMapper = objectMapper;
+        this.redisAnalysisLock = redisAnalysisLock;
     }
 
     // This method => Calls GeminiService, take the response and returns to Controller.
-    // Additional Fun: It also checks cache for optimizing AI API calls.
+    @SuppressWarnings("null")
     public AnalyzeResponse analyzeText(String text, String username) throws Exception {
 
         // text max length validation...
@@ -64,33 +71,48 @@ public class AnalysisService {
         // fetch the input text's hashed val..
         String cacheKey = cacheKeyGenerator.generateKey(text);
 
-        // fetch the response from the cache.. -> Fetched the value from redis as Object.
-        Object cachedValue = redisTemplate.opsForValue().get(cacheKey);
-
-        AnalyzeResponse response = null;
-
-        // use ObjectMapper to convert the cacheVal object to AnalyzeResponse structure.
-        if (cachedValue != null) {
-            response = 
-                objectMapper.convertValue(
-                    cachedValue,
-                    AnalyzeResponse.class
-                );
-        }
+        // Implementing Distributed token based Lock using double checking pattern.
         
-        // check if the Redis cache already have the response in cache...
+        // 1. CACHE HIT Case: First check the Cache for the already existing value.
+        AnalyzeResponse response = getCachedResponse(cacheKey);
+
+        // 2. CACHE MISS Case: if response is null, acquire a lock, check cache again [Someone might have populated the value] else wait for sometime. Do Release the lock at the end.
         if (response == null) {
 
-            // Cache Miss Case..
-            response = geminiService.analyzeTerms(text);
+            // 2.1 acquire the lock.
+            String lockToken = redisAnalysisLock.acquireLock(cacheKey);
 
-            // Cache Gemini Result..
-            redisTemplate.opsForValue().set(
-                cacheKey, 
-                response,
-                5,
-                TimeUnit.MINUTES
-            );
+            // 2.2 if lock acquired success -> check Redis cache again...
+            if (lockToken != null) {
+
+                // This makes sure we can catch thread exceptions if happens also it helps always execute the finally block.
+                try {
+
+                    response = getCachedResponse(cacheKey);
+
+                    // 2.3 Still no response from cache -> this is a geniuin CACHE Miss cache i.e new payload req -> make a call to AI API.
+                    if (response == null) {
+
+                        response = geminiService.analyzeTerms(text);
+
+                        // Add response to cache...
+                        redisTemplate.opsForValue().set(
+                            cacheKey, 
+                            response,
+                            5,
+                            TimeUnit.MINUTES
+                        );
+                    }
+
+                } finally {
+                    // 2.4 we done what we need to do, Release the lock..
+                    redisAnalysisLock.releaseLock(cacheKey, lockToken);
+                }
+
+            } else {
+                // 3. Lock acquired is unsucessful -> Means another thread is currently in process -> have to wait.
+                response = waitForcacheResponse(cacheKey);
+            }
         }
 
         // Below we are building data for Analysis history and will save this in database for User Data Analytics.
@@ -110,6 +132,62 @@ public class AnalysisService {
 
         return response;
     }
+
+    // @method: used to fetch the value from Redis Cache..
+    private AnalyzeResponse getCachedResponse(String cacheKey) {
+
+        // fetch the response from the cache.. -> Fetched the value from redis as Object.
+        @SuppressWarnings("null")
+        Object cachedValue = redisTemplate.opsForValue().get(cacheKey);
+
+        if(cachedValue == null) {
+            return null;
+        }
+
+        // objectMapper --> convert the cacheVal object to AnalyzeResponse structure.
+        return objectMapper.convertValue(
+            cachedValue, 
+            AnalyzeResponse.class
+        );
+    }
+
+    // @method: Add wait to the current Thread for 10s -> 10 attempts to read cache then 1000ms i.e 1s wait and then retry...
+    private AnalyzeResponse waitForcacheResponse(String cacheKey) {
+
+        int maxAttempts = 10;
+        long waitTimeMillis = 1000;
+
+        // run a loop to wait and check for each attempts..
+        for(int attempt = 0; attempt < maxAttempts; attempt++ ) {
+
+            try {
+
+                Thread.sleep(waitTimeMillis);
+
+            } catch (InterruptedException ex) {
+                
+                Thread.currentThread().interrupt();  // mark the current thread as intruppeted and throw exception.
+
+                throw new GeminiApiException(
+                    "Intruppted while waiting for cached analysis",
+                    ex
+                );
+            }
+
+            AnalyzeResponse response = getCachedResponse(cacheKey);
+
+            // Found in the cached value after wait -> return it back..
+            if(response != null) {
+                return response;
+            }
+        }
+
+        // If after 10 attemps still not found, throw exception..
+        throw new GeminiApiException(
+            "Timed out while waiting for analyze result in cache"
+        );
+    }
+
     
     // This method -> takes username [passed in the header by gate-way service] -> calls repository -> fetches records by username sorted by createdDate.
     // Updated: added Pagination support.
@@ -272,5 +350,9 @@ public class AnalysisService {
                 - Here, we are storing the result always in postgress but before we just check if the current result exists in cache or not ?
                 - If present, send it to the response.
                 - If not, call the gemini service, get the response then store it in redis  -> then do the same for preparing Analysis Response structure.
+
+        -- We are adding support for Redis Distributed Lock support for concurrent AI API reqs.
+            -> As part of this, we are modifying the logic of calling the Gemini Service.
+            -> We are implementing "Double check caching" Logic to avoid threads to conflict with each other work.
         
 */

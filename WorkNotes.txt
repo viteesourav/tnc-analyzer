@@ -908,20 +908,137 @@ Date: 15th Aug
                         Redis
                         ↓
                         PostgreSQL history
+        
+        ### NOTE: 
+            Redis CLI Commands: 
+                - docker exec -it tnc-redis redis-cli ping   -> Check if Redis is up and running !
+                - docker exec -it tnc-redis redis-cli DBSIZE  -> check the size of items currently Redis holds.
+                - docker exec -it tnc-redis redis-cli KEYS "analysis:gemini:*"  -> Checks for any keys present in the cache.
+                - docker exec -it tnc-redis redis-cli GET "<Key_txt form above cmd>"  -> Fetches the value stored in cache. 
+                - docker exec -it tnc-redis redis-cli DEL "<Key_txt form above cmd>"  -> Delete entry from cache. 
+                - docker exec -it tnc-redis redis-cli SET "analysis:gemini:test-hash:lock" "UUID-1234" EX 60 NX
+                    - EX: expiration -> set TTL as 60, If the current thread crashes, Redis releases the lock automatically after 60s. other threads are not blocked forever.
+                    - NX: Not Exist  -> only SET if the key not already exist. This magic flag enforces the lock by previous thread.
 
-    ### NOTE: 
-        Problem:
-            - There is problem we need to Address: While fetching the data from Redis deserialize -> since RedisTempalte take <String, Object>
-            - the GenericJackson2JsonRedisSerializer, coverts the response to generic LinkedHashMap. => Which we cannot directly cast to AnalyzeResponse structure.
-        Solution:
-            - use Object Mapper explictly convert the LinkedHashMap into AnalyzeResponse Strucute.
+        ### NOTE: 
+            Problem:
+                - There is problem we need to Address: While fetching the data from Redis deserialize -> since RedisTempalte take <String, Object>
+                - the GenericJackson2JsonRedisSerializer, coverts the response to generic LinkedHashMap. => Which we cannot directly cast to AnalyzeResponse structure.
+            Solution:
+                - use Object Mapper explictly convert the LinkedHashMap into AnalyzeResponse Strucute.
 
 
-        3. TTL
-            -- Will decide how long the data persist in the memory. 
-            -- Problem that we are solving: 
-                -> we are trying to solve is when the same req with exact same text is sent twice or thrice. 
-                -> we want to limit that. I believe a TTL of even 5 mins also would work instead of 7 days or 24 hours. 
-                -> you see we are not storing data, we just avoiding any duplicate calls that might hit AI and use unnecessary tokens.
-            -- changes:
-                In Analysis Service, where we are setting data to Redis using RedisTemplate -> specify the expire time as well.  **** 5 mins in our case *****
+            3. TTL
+                -- Will decide how long the data persist in the memory. 
+                -- Problem that we are solving: 
+                    -> we are trying to solve is when the same req with exact same text is sent twice or thrice. 
+                    -> we want to limit that. I believe a TTL of even 5 mins also would work instead of 7 days or 24 hours. 
+                    -> you see we are not storing data, we just avoiding any duplicate calls that might hit AI and use unnecessary tokens.
+                -- changes:
+                    In Analysis Service, where we are setting data to Redis using RedisTemplate -> specify the expire time as well.  **** 5 mins in our case *****
+
+Date: 23rd Aug
+
+        ## Redis Feature: Handle Concurrent duplicate Requests [ Redis Distributed Lock usecase ]  #### Important ####
+            Problem:
+                -- If 2 requests arrived exactly at the same time then: 
+                    Request A --> Redis MISS  --> Gemini Call --> Redis Cache Storage.
+                    Request B --> Redis MISS  --> Gemini Call --> Redis Cache Storage. 
+                -- Both hits the API for the exact same response, and stores in Cache. 
+                -- The Redis Cache doesn't protect from simultaneous calls --> Thus consuming Tokens and making unnecessary calls.
+            
+            Solution: Implemeting Redis Distributed Lock.
+                -- Ideally, if 2 reqs came at the same time. Only 1 request is allowed to "Aquire a Lock", and call AI API. the other API will have to wait, then check Redis for CACHE HIT.
+            
+            Changes:
+                Approach 1: using setIfAbsent() and delete() Lock manually: 
+                    1. We need to add a seperate lock key for the keys stored in Redis.
+                        -- eg: Currently we store Redis key as: analysis:gemini:<key-hash>
+                        -- Now we need something like: analsis:gemini:lock:<key-hash>
+                        -- Here:
+                            Cache Key i.e <key-hash> --> This determinies where is the result.
+                            lock key --> This determine who is currently generating the result.
+                    2. Update AnalysisService:
+                        -- we will use setIfAbset()  here for the first Redis MISS.
+                        -- This means: set this key only if it doesnot already exist, and give it 60-seconds expiration.
+                    
+                    -- Redis performs this check atomically. Means, If Req A and Req B arrives together, only 1 will be lock owner and other will be false and need to wait.
+
+                    Problem:
+                        -- what if Req A takes more than 60 s ? then:
+                            A acquires lock --> AI API call takes > 60s --> Lock Expires --> B acquires same Lock --> A eventaully finish and delete's B's lock.
+                        -- A Messy situation that can go unpredictable.
+                        -- we cannot just sleep Req B. Reasion:
+                            A → Gemini takes 200ms
+                            B → sleep 500ms → cache found
+
+                            A → Gemini takes 3 seconds
+                            B → sleep 500ms → cache still empty
+                            B → ??? 
+
+                Approach 2: Simple Redis token based Approach
+                    -- using uuid for locks. Unique lock Ids for each req handles them seperatly. 
+                    -- New file:  /util/RedisAnalysisLock.java
+                    -- Purpose:
+                        -- we are crating lock token using uuid -> this provides unique locktoken to each requests.
+                            eg: Request A → token = abc-123
+                                Request B → token = xyz-789
+                        -- This locktoken is uique to Req who owns them. Later it's easy when we release it.
+                        -- SO, basically:
+                            1. for acquiring lock: we will create a lockKey [cacheKey + ":lock"] and lokenToke as uuid  -> store it for 60s in cache.
+                                - so if same cacheKey comes from another req --> Oh Boy ! lock is already there.
+                            2. Release Lock:
+                                - we will check cache with GET(lockKey) then DELETE(lockkey) -> so that now other req can access the lock.
+                                BUT, 
+                                Problem:
+                                    -- There is a scenario where this above code can cause a Race Condition:
+                                    -- Consider, 
+                                        Req A acquired Lock [cacheKey: c1 ] --> Gemini Call taking > 60s --> the lock expires automatically --> Req B with same payload comes in [cacheKey: c2] -->  Acquire new lock, new uuid.
+                                        then, Req A, eventaully compelets --> Fetch from cache [Get(cacheKey)] ---> Deletes Req B's new lock  [!! Noooo, this is wrong !!!]
+                                    
+                                    -- Problem is GET(cachedKey) and Delete(cacheKey) are 2 different operations, so in middle something can change. i.e they are not atomic in nature.
+                                    -- Solution:
+                                        using Lua Script for removal logic. 
+                                        Reason: Redis support's Lua script that supports atomicity. i.e it will execute the script one a single thread - no other thread can interfer in-between.
+                        -- Service Integration:
+                            - Current Flow:
+                                Cache Hit --> use cached Response.
+                                Cache miss --> call AI API  --> Store in Cache.
+                            - Modify the Cache Miss part: 
+                                Cache Miss --> Try Lock  --> yes --> Lock Acquired --> Re-check Redis  --> Gemini API --> Redis save.
+                                                    |------> NO  --> Lock Not Acquired --> Wait + re-check Redis --> Cached Response.
+                            - Introducing "double-checking caching" Pattern:
+                                - First Check Redis -> If  Miss ---> Acquire Lock ---> Second Check Redis again --> If miss then only call AI API.
+                                - This prevents the other service to call AI API after acquirng a lock.
+                                - explain:
+                                    Req A acquire locks and Req B waits. While Req B waits, Req A completes, store in cache and then release Lock.
+                                    Req B now acquire the lock. -> Checks for Redis for the second time, now it finds the data, so it uses it.
+                            - Introducing "wait" logic for the Req B:
+                                - We have used Thread.sleep() -> A total of 10 attempts to read from cache while after each un-successful attemps the thread sleeps for 10,00 ms.
+                                - Total Time in attempts => 10 attempts * 1000 ms for wait  --> 10,000 ms i.e 10s for total wait !
+                                - Failure handling:
+                                    - In case the thread is inturpted while waiting, throw a thred intruption exception.
+                                    - In case, after 10 attemps also it didn't find in cache, thread time-out exception must be thrown.
+                                NOTE:
+                                    - We noticed, 2s total wait time is too less, as AI API taking 7 s to respond. -> all concurrent calls are blocked due to Token Lock on cache.
+                                    - Increased wait time to 10s with each retries after 1s for concurrent Req.
+
+                    -- Our Final Redis Flow should be:
+                        SHA-256
+                        ↓
+                        Cache
+                        ↓
+                        TTL
+                        ↓
+                        Distributed lock
+                        ↓
+                        Token ownership
+                        ↓
+                        Atomic release
+                            
+            
+            -- Concepts Here:
+                1. Cache --> Stores the result for max of 5 mins.
+                2. Lock --> Prevents simultaneous generation i.e if 2 req at same time, it let on lock the operation while the other wait. max Lock time: 60 s
+                3. TTL  --> Prevent stale/permanent entry. 
+                4. Lock Ownership --> Ensures one requests doesnot release another request's lock.
