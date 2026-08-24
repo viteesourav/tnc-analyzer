@@ -1024,17 +1024,38 @@ Date: 23rd Aug
                                     - Increased wait time to 10s with each retries after 1s for concurrent Req.
 
                     -- Our Final Redis Flow should be:
-                        SHA-256
-                        ↓
-                        Cache
-                        ↓
-                        TTL
-                        ↓
-                        Distributed lock
-                        ↓
-                        Token ownership
-                        ↓
-                        Atomic release
+                              
+                              POST /analyses
+                                    │
+                                    ▼
+                            Generate SHA-256
+                                    │
+                                    ▼
+                            ┌─────────────┐
+                            │    Redis    │
+                            └──────┬──────┘
+                                   │
+                                Cache HIT?
+                                /         \
+                            YES          NO
+                            │            │
+                            │            ▼
+                            │      Acquire Lock
+                            │        /       \
+                            │      YES        NO
+                            │       │          │
+                            │       ▼          ▼
+                            │    Gemini    Wait + Poll
+                            │       │          │
+                            │       ▼          │
+                            │     Redis ◄──────┘
+                            │
+                            └──────────┐
+                                        ▼
+                                AnalyzeResponse
+                                        │
+                                        ▼
+                                PostgreSQL
                             
             
             -- Concepts Here:
